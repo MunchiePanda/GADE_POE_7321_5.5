@@ -1,5 +1,6 @@
 #include "RaceHUDWidget.h"
 #include "Components/TextBlock.h"
+#include "PlayerHamster.h"
 
 void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps)
 {
@@ -11,7 +12,15 @@ void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentL
 
 FText URaceHUDWidget::GetSpeedText() const
 {
-    return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), CurrentSpeed));
+    if (PlayerHamsterClass)
+    {
+        APlayerHamster* PlayerHamster = Cast<APlayerHamster>(PlayerHamsterClass->GetDefaultObject());
+        if (PlayerHamster)
+        {
+            return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), PlayerHamster->GetSpeed()));
+        }
+    }
+    return FText::FromString(TEXT("Speed: 0 km/h"));
 }
 
 FText URaceHUDWidget::GetTimeText() const

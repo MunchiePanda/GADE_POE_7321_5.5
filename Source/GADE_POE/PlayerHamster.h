@@ -34,8 +34,16 @@ public:
 	void Brake(float Value);
 
 	void Turn(float Value);
-
 	void LookUp(float Value);
+
+
+	float CurrentSpeed = 0.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "Movement") // get speed (Exposed property for speed)
+	float GetSpeed() const;
+
+	
+	
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spline")
 	USplineComponent* Spline;
@@ -60,8 +68,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Movement")
 	float BrakeForce = 800.0f;
-
-	float CurrentSpeed = 0.0f;
 
 	// Camera Components
 	UPROPERTY(VisibleAnywhere)

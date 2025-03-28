@@ -6,7 +6,9 @@
 //#include "GameFramework/FloatingPawnMovement.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SplineComponent.h"
-
+#include "Blueprint/UserWidget.h"
+#include "RaceHUDWidget.h"
+#include "GameFramework/HUD.h"
 
 
 // Sets default values
@@ -77,6 +79,7 @@ void APlayerHamster::Tick(float DeltaTime)
 
         SetActorLocation(NewLocation);
     }
+
 }
 
 // Called to bind functionality to input
@@ -147,4 +150,9 @@ void APlayerHamster::LookUp(float Value)
         NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + Value, -80.0f, 10.0f);
 		SpringArm->SetRelativeRotation(NewRotation);
     }
+}
+
+float APlayerHamster::GetSpeed() const
+{
+	return CurrentSpeed;
 }

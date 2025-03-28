@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "PlayerHamster.h"
 #include "RaceHUDWidget.generated.h"
 
 UCLASS()
@@ -22,8 +23,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "HUD")
     FText GetLapText() const;
 
+
     /** Updates the race stats */
     void SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps);
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
+    TSubclassOf<APlayerHamster> PlayerHamsterClass;
 
 protected:
     /** Holds race data */
