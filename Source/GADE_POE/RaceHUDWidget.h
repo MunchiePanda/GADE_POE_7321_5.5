@@ -10,28 +10,25 @@ class GADE_POE_API URaceHUDWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
-    /** Updates the speed display */
+    /** Gets the current speed (bind this to UI) */
     UFUNCTION(BlueprintCallable, Category = "HUD")
-    void UpdateSpeed(float Speed);
+    FText GetSpeedText() const;
 
-    /** Updates the time display */
+    /** Gets the elapsed time (bind this to UI) */
     UFUNCTION(BlueprintCallable, Category = "HUD")
-    void UpdateTime(float TimeElapsed);
+    FText GetTimeText() const;
 
-    /** Updates the lap count display */
+    /** Gets the lap count (bind this to UI) */
     UFUNCTION(BlueprintCallable, Category = "HUD")
-    void UpdateLaps(int32 CurrentLap, int32 TotalLaps);
+    FText GetLapText() const;
+
+    /** Updates the race stats */
+    void SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps);
 
 protected:
-    /** Speed text UI element */
-    UPROPERTY(meta = (BindWidget))
-    class UTextBlock* SpeedText;
-
-    /** Time text UI element */
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* TimeText;
-
-    /** Lap count text UI element */
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* LapText;
+    /** Holds race data */
+    float CurrentSpeed;
+    float ElapsedTime;
+    int32 LapNumber;
+    int32 TotalLapCount;
 };

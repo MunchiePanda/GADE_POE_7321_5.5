@@ -40,4 +40,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	ACheckpointActor* GetNextCheckpoint();
 
+	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
+	void DebugCheckpointStatus();
+
 };

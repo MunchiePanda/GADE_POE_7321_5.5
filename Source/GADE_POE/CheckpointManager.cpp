@@ -3,6 +3,7 @@
 
 #include "CheckpointManager.h"
 #include "CheckpointActor.h"
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 ACheckpointManager::ACheckpointManager()
@@ -52,5 +53,23 @@ ACheckpointActor* ACheckpointManager::GetNextCheckpoint()
 		return NextCheckpoint;
 	}
 	return nullptr;
+}
+
+// Debug function to check checkpoint status
+void ACheckpointManager::DebugCheckpointStatus()
+{
+	ACheckpointActor* NextCheckpoint = GetNextCheckpoint();
+
+	if (NextCheckpoint)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Next Checkpoint: %s"), *NextCheckpoint->GetName());
+
+		// Draw a debug sphere at the checkpoint
+		DrawDebugSphere(GetWorld(), NextCheckpoint->GetActorLocation(), 50.0f, 12, FColor::Red, false, 5.0f);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("No checkpoints left in stack!"));
+	}
 }
 

@@ -1,29 +1,27 @@
 #include "RaceHUDWidget.h"
 #include "Components/TextBlock.h"
 
-void URaceHUDWidget::UpdateSpeed(float Speed)
+void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps)
 {
-    if (SpeedText)
-    {
-        SpeedText->SetText(FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), Speed)));
-    }
+    CurrentSpeed = Speed;
+    ElapsedTime = TimeElapsed;
+    LapNumber = CurrentLap;
+    TotalLapCount = TotalLaps;
 }
 
-void URaceHUDWidget::UpdateTime(float TimeElapsed)
+FText URaceHUDWidget::GetSpeedText() const
 {
-    if (TimeText)
-    {
-        int32 Minutes = FMath::FloorToInt(TimeElapsed / 60);
-        int32 Seconds = FMath::FloorToInt(FMath::Fmod(TimeElapsed, 60));
-
-        TimeText->SetText(FText::FromString(FString::Printf(TEXT("Time: %02d:%02d"), Minutes, Seconds)));
-    }
+    return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), CurrentSpeed));
 }
 
-void URaceHUDWidget::UpdateLaps(int32 CurrentLap, int32 TotalLaps)
+FText URaceHUDWidget::GetTimeText() const
 {
-    if (LapText)
-    {
-        LapText->SetText(FText::FromString(FString::Printf(TEXT("Lap: %d / %d"), CurrentLap, TotalLaps)));
-    }
+    int32 Minutes = FMath::FloorToInt(ElapsedTime / 60);
+    int32 Seconds = FMath::FloorToInt(FMath::Fmod(ElapsedTime, 60));
+    return FText::FromString(FString::Printf(TEXT("Time: %02d:%02d"), Minutes, Seconds));
+}
+
+FText URaceHUDWidget::GetLapText() const
+{
+    return FText::FromString(FString::Printf(TEXT("Lap: %d / %d"), LapNumber, TotalLapCount));
 }
