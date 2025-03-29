@@ -24,12 +24,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "HUD")
     FText GetTimeText() const;
 
-    /** Gets the lap count (bind this to UI) */
+    /** Gets the lap count (bind this to UI) and remaining checkpoints */
     UFUNCTION(BlueprintCallable, Category = "HUD")
     FText GetLapText() const;
 
-	UFUNCTION(BlueprintCallable, Category = "HUD")
-    FText GetCheckpointText() const;
 
 
     /** Updates the race stats */

@@ -55,22 +55,15 @@ FText URaceHUDWidget::GetTimeText() const
 
 FText URaceHUDWidget::GetLapText() const
 {
-    return FText::FromString(FString::Printf(TEXT("Lap: %d / %d"), LapNumber, TotalLapCount));
-}
-
-FText URaceHUDWidget::GetCheckpointText() const
-{
     if (CheckpointManagerClass)
     {
         int32 RemainingCheckpoints = CheckpointManagerClass->GetRemainingCheckpoint();
-        UE_LOG(LogTemp, Warning, TEXT("Remaining Checkpoints: %d"), RemainingCheckpoints);
-        return FText::FromString(FString::Printf(TEXT("Checkpoints Left: %d"), RemainingCheckpoints));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Checkpoint Manager Not Found"));
-        return FText::FromString(TEXT("Checkpoint Manager Not Found"));
-    }
+        int32 CurrentLap = CheckpointManagerClass->GetCurrentLap();
+        int32 TotalLaps = CheckpointManagerClass->GetTotalLaps();
 
-    //return FText::FromString(TEXT("Checkpoints Left: 0"));
+        return FText::FromString(FString::Printf(TEXT("Lap %d/%d \n Checkpoints Left: %d"), CurrentLap, TotalLaps, RemainingCheckpoints));
+    }
+    return FText::FromString(TEXT("Lap 0/0 | Checkpoints Left: 0"));
 }
+
+

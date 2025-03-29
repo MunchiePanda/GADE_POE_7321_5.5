@@ -17,6 +17,7 @@ public:
 	// Sets default values for this actor's properties
 	ACheckpointManager();
 
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -24,7 +25,7 @@ protected:
 	/** Stack storing all checkpoints */
 	CheckStackTemp <ACheckpointActor*> CheckpointStack; // Stack of checkpoints
 
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override; 
 
@@ -40,14 +41,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	ACheckpointActor* GetNextCheckpoint(); // Get the next checkpoint
 
+	/** Resets the checkpoints */
+	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
+	void ResetCheckpoints();
+
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	void DebugCheckpointStatus(); // Debug checkpoints
 	 
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints") 
 	int32 GetRemainingCheckpoint() const; // Get the number of checkpoints reached
 
+	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
+	int32 GetCurrentLap() const { return CurrentLap; } // Get the current lap
+
+	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
+	int32 GetTotalLaps() const { return TotalLaps; } // Get the total laps
+
 private:
 	bool bCheckpointCleared = false; // Flag to prevent multiple calls
 
-
+	int32 TotalLaps = 2; // Set total laps
+	int32 CurrentLap = 1; // Start at lap 1
+	TArray<ACheckpointActor*> AllCheckpoints; // Store checkpoints for resetting
 };

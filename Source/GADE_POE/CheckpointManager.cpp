@@ -24,6 +24,7 @@ void ACheckpointManager::BeginPlay()
 		if (Checkpoint)
 		{
 			AddCheckpoint(Checkpoint); // Add checkpoints to the stack
+			AllCheckpoints.Add(Checkpoint); // Store for resetting
 			
 		}
 	}
@@ -31,6 +32,7 @@ void ACheckpointManager::BeginPlay()
 	
 	UE_LOG(LogTemp, Warning, TEXT("Checkpoint Manager Initialized! Stack Size: %d"), CheckpointStack.Size()); // Log stack size
 }
+
 
 // Called every frame
 void ACheckpointManager::Tick(float DeltaTime)
@@ -52,34 +54,60 @@ void ACheckpointManager::AddCheckpoint(ACheckpointActor* Checkpoint) // Add chec
 	}
 }
 
-void ACheckpointManager::PlayerReachedCheckpoint() // Player reached a checkpoint
+void ACheckpointManager::PlayerReachedCheckpoint()
 {
-	if (bCheckpointCleared) return; // Prevent multiple calls
-	bCheckpointCleared = true; // Mark checkpoint as cleared
+	if (bCheckpointCleared) return;
+	bCheckpointCleared = true;
 
 	ACheckpointActor* ReachedCheckpoint;
 	if (CheckpointStack.Pop(ReachedCheckpoint))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Checkpoint Passed: %s"), *ReachedCheckpoint->GetName());
-		//ReachedCheckpoint->Destroy();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("No checkpoints left in the stack!")); // Log error if no checkpoints left
 	}
 
-	// Reset checkpoint clearance flag after a short delay
-	GetWorldTimerManager().SetTimerForNextTick([this]() { bCheckpointCleared = false; }); // Reset flag
+	// If stack is empty, the player completed a lap
+	if (CheckpointStack.IsEmpty())
+	{
+		if (CurrentLap < TotalLaps)
+		{
+			CurrentLap++;
+			ResetCheckpoints(); // Refill the stack for next lap
+			UE_LOG(LogTemp, Warning, TEXT("Lap %d/%d Completed!"), CurrentLap - 1, TotalLaps);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Race Finished!"));
+			// You could add logic here to end the race, show UI, etc.
+		}
+	}
+
+	GetWorldTimerManager().SetTimerForNextTick([this]() { bCheckpointCleared = false; });
 }
 
 ACheckpointActor* ACheckpointManager::GetNextCheckpoint() // Get the next checkpoint
 {
 	ACheckpointActor* NextCheckpoint;
-	if (CheckpointStack.Peek(NextCheckpoint) && IsValid(NextCheckpoint))
+	if (CheckpointStack.Peek(NextCheckpoint) && IsValid(NextCheckpoint)) // Check if checkpoint is valid
 	{
 		return NextCheckpoint;
 	}
 	return nullptr;
+}
+
+void ACheckpointManager::ResetCheckpoints()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Resetting Checkpoints for New Lap..."));
+
+	// Re-add all checkpoints
+	for (ACheckpointActor* Checkpoint : AllCheckpoints)
+	{
+		if (IsValid(Checkpoint)) // Check if checkpoint is valid
+		{
+			CheckpointStack.Push(Checkpoint);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Checkpoints Reset! Stack Size: %d"), CheckpointStack.Size());
 }
 
 void ACheckpointManager::DebugCheckpointStatus() // Debug checkpoints
