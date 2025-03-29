@@ -11,6 +11,8 @@ class GADE_POE_API URaceHUDWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
     /** Gets the current speed (bind this to UI) */
     UFUNCTION(BlueprintCallable, Category = "HUD")
     FText GetSpeedText() const;

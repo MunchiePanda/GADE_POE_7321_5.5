@@ -17,6 +17,7 @@ ACheckpointActor::ACheckpointActor()
 void ACheckpointActor::BeginPlay()
 {
     Super::BeginPlay();
+
 }
 
 // Called every frame

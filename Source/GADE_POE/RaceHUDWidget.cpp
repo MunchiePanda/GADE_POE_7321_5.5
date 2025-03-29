@@ -10,6 +10,14 @@ void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentL
     TotalLapCount = TotalLaps;
 }
 
+void URaceHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+
+	ElapsedTime += InDeltaTime;
+
+}
+
 FText URaceHUDWidget::GetSpeedText() const
 {
     if (PlayerHamsterClass)

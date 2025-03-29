@@ -25,6 +25,6 @@ public:
 
 	/** Called when player overlaps with checkpoint */
 	UFUNCTION()
-	void OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* OtherActor);
+	void OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* OtherActor); // Function to call when player enters checkpoint
 
 };

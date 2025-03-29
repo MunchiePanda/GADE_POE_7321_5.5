@@ -43,4 +43,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	void DebugCheckpointStatus();
 
+private:
+	bool bCheckpointCleared = false;
+
 };

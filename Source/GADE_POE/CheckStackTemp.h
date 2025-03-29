@@ -52,6 +52,11 @@ public:
         StackArray.Empty();
     }
 
+    int32 Size() const
+    {
+        return StackArray.Num();
+    }
+
 private:
     TArray<T> StackArray; // Internal storage for stack elements
 };
