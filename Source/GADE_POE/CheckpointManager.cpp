@@ -24,7 +24,7 @@ void ACheckpointManager::BeginPlay()
 		if (Checkpoint)
 		{
 			AddCheckpoint(Checkpoint); // Add checkpoints to the stack
-			//RemainingCheckpoints+=CheckpointStack.Size(); // Increment remaining checkpoints
+			
 		}
 	}
 

@@ -36,7 +36,7 @@ public:
     void SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
-    TSubclassOf<APlayerHamster> PlayerHamsterClass;
+    APlayerHamster* PlayerHamsterClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
    ACheckpointManager* CheckpointManagerClass;

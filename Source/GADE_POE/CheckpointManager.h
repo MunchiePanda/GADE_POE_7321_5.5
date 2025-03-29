@@ -22,11 +22,11 @@ protected:
 	virtual void BeginPlay() override;
 
 	/** Stack storing all checkpoints */
-	CheckStackTemp <ACheckpointActor*> CheckpointStack;
+	CheckStackTemp <ACheckpointActor*> CheckpointStack; // Stack of checkpoints
 
 public:	
 	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	virtual void Tick(float DeltaTime) override; 
 
 	/** Adds a checkpoint to the stack */
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
@@ -34,20 +34,20 @@ public:
 
 	/** Called when the player reaches a checkpoint */
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
-	void PlayerReachedCheckpoint();
+	void PlayerReachedCheckpoint(); // Player reached a checkpoint
 
 	/** Gets the next checkpoint */
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
-	ACheckpointActor* GetNextCheckpoint();
+	ACheckpointActor* GetNextCheckpoint(); // Get the next checkpoint
 
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
-	void DebugCheckpointStatus();
-
-	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
-	int32 GetRemainingCheckpoint() const;
+	void DebugCheckpointStatus(); // Debug checkpoints
+	 
+	UFUNCTION(BlueprintCallable, Category = "Checkpoints") 
+	int32 GetRemainingCheckpoint() const; // Get the number of checkpoints reached
 
 private:
-	bool bCheckpointCleared = false;
-	//int32 RemainingCheckpoints = 0;
+	bool bCheckpointCleared = false; // Flag to prevent multiple calls
+
 
 };

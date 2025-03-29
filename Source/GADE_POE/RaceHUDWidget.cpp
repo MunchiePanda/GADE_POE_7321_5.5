@@ -28,17 +28,20 @@ void URaceHUDWidget::NativeConstruct()
 		CheckpointManagerClass = *It;
         break;
 	}
+
+	for (TActorIterator<APlayerHamster> It(GetWorld()); It; ++It) // Find PlayerHamster in the level
+	{
+		PlayerHamsterClass = *It;
+		break;
+	}
 }
 
 FText URaceHUDWidget::GetSpeedText() const
 {
     if (PlayerHamsterClass)
     {
-        APlayerHamster* PlayerHamster = Cast<APlayerHamster>(PlayerHamsterClass->GetDefaultObject());
-        if (PlayerHamster)
-        {
-            return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), PlayerHamster->GetSpeed()));
-        }
+        return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), PlayerHamsterClass->GetSpeed()));
+        
     }
     return FText::FromString(TEXT("Speed: 0 km/h"));
 }
