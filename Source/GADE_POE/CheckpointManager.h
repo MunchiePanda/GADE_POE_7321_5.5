@@ -48,6 +48,6 @@ public:
 
 private:
 	bool bCheckpointCleared = false;
-	int32 RemainingCheckpoints = 0;
+	//int32 RemainingCheckpoints = 0;
 
 };

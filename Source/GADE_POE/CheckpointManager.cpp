@@ -24,10 +24,11 @@ void ACheckpointManager::BeginPlay()
 		if (Checkpoint)
 		{
 			AddCheckpoint(Checkpoint); // Add checkpoints to the stack
-			RemainingCheckpoints++; // Increment remaining checkpoints
+			//RemainingCheckpoints+=CheckpointStack.Size(); // Increment remaining checkpoints
 		}
 	}
 
+	
 	UE_LOG(LogTemp, Warning, TEXT("Checkpoint Manager Initialized! Stack Size: %d"), CheckpointStack.Size()); // Log stack size
 }
 
@@ -35,6 +36,7 @@ void ACheckpointManager::BeginPlay()
 void ACheckpointManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
 }
 
 void ACheckpointManager::AddCheckpoint(ACheckpointActor* Checkpoint) // Add checkpoints to the stack
@@ -115,5 +117,5 @@ void ACheckpointManager::DebugCheckpointStatus() // Debug checkpoints
 // Get the number of checkpoints reached
 int32 ACheckpointManager::GetRemainingCheckpoint() const
 {
-	return  RemainingCheckpoints - CheckpointStack.Size();
+	return  CheckpointStack.Size();
 }

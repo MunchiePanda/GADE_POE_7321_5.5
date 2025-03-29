@@ -2,7 +2,7 @@
 #include "Components/TextBlock.h"
 #include "PlayerHamster.h"
 #include "CheckpointManager.h"
-
+#include "EngineUtils.h"
 void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps)
 {
     CurrentSpeed = Speed;
@@ -17,6 +17,17 @@ void URaceHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 	ElapsedTime += InDeltaTime;
 
+}
+
+void URaceHUDWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+    for(TActorIterator<ACheckpointManager> It(GetWorld()); It; ++It) // Find CheckpointManager in the level
+	{
+		CheckpointManagerClass = *It;
+        break;
+	}
 }
 
 FText URaceHUDWidget::GetSpeedText() const
@@ -49,7 +60,14 @@ FText URaceHUDWidget::GetCheckpointText() const
     if (CheckpointManagerClass)
     {
         int32 RemainingCheckpoints = CheckpointManagerClass->GetRemainingCheckpoint();
+        UE_LOG(LogTemp, Warning, TEXT("Remaining Checkpoints: %d"), RemainingCheckpoints);
         return FText::FromString(FString::Printf(TEXT("Checkpoints Left: %d"), RemainingCheckpoints));
     }
-    return FText::FromString(TEXT("Checkpoints Left: 0"));
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Checkpoint Manager Not Found"));
+        return FText::FromString(TEXT("Checkpoint Manager Not Found"));
+    }
+
+    //return FText::FromString(TEXT("Checkpoints Left: 0"));
 }
