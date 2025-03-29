@@ -43,7 +43,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	void DebugCheckpointStatus();
 
+	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
+	int32 GetRemainingCheckpoint() const;
+
 private:
 	bool bCheckpointCleared = false;
+	int32 RemainingCheckpoints = 0;
 
 };

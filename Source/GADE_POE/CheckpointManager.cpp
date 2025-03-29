@@ -24,6 +24,7 @@ void ACheckpointManager::BeginPlay()
 		if (Checkpoint)
 		{
 			AddCheckpoint(Checkpoint); // Add checkpoints to the stack
+			RemainingCheckpoints++; // Increment remaining checkpoints
 		}
 	}
 
@@ -110,4 +111,9 @@ void ACheckpointManager::DebugCheckpointStatus() // Debug checkpoints
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("----- End Debug -----"));
+}
+// Get the number of checkpoints reached
+int32 ACheckpointManager::GetRemainingCheckpoint() const
+{
+	return  RemainingCheckpoints - CheckpointStack.Size();
 }

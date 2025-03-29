@@ -1,6 +1,7 @@
 #include "RaceHUDWidget.h"
 #include "Components/TextBlock.h"
 #include "PlayerHamster.h"
+#include "CheckpointManager.h"
 
 void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps)
 {
@@ -41,4 +42,14 @@ FText URaceHUDWidget::GetTimeText() const
 FText URaceHUDWidget::GetLapText() const
 {
     return FText::FromString(FString::Printf(TEXT("Lap: %d / %d"), LapNumber, TotalLapCount));
+}
+
+FText URaceHUDWidget::GetCheckpointText() const
+{
+    if (CheckpointManagerClass)
+    {
+        int32 RemainingCheckpoints = CheckpointManagerClass->GetRemainingCheckpoint();
+        return FText::FromString(FString::Printf(TEXT("Checkpoints Left: %d"), RemainingCheckpoints));
+    }
+    return FText::FromString(TEXT("Checkpoints Left: 0"));
 }

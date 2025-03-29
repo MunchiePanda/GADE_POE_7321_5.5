@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "PlayerHamster.h"
+#include "CheckpointManager.h"
 #include "RaceHUDWidget.generated.h"
 
 UCLASS()
@@ -25,12 +26,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "HUD")
     FText GetLapText() const;
 
+	UFUNCTION(BlueprintCallable, Category = "HUD")
+    FText GetCheckpointText() const;
+
 
     /** Updates the race stats */
     void SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
     TSubclassOf<APlayerHamster> PlayerHamsterClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player")
+   ACheckpointManager* CheckpointManagerClass;
 
 protected:
     /** Holds race data */
