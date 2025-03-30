@@ -9,6 +9,7 @@
 #include "Blueprint/UserWidget.h"
 #include "RaceHUDWidget.h"
 #include "GameFramework/HUD.h"
+#include "PauseMenu_WB.h"
 
 // Sets default values
 APlayerHamster::APlayerHamster()
@@ -39,6 +40,7 @@ APlayerHamster::APlayerHamster()
     //Camera
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
+
 }
 
 
@@ -52,6 +54,23 @@ void APlayerHamster::BeginPlay()
         Spline = FindComponentByClass<USplineComponent>();
     }
 
+    if (PauseMenuWidgetClass)
+    {
+        PauseMenuWidget = CreateWidget<UPauseMenu_WB>(GetWorld(), PauseMenuWidgetClass);
+        if (PauseMenuWidget)
+        {
+            PauseMenuWidget->AddToViewport();
+            PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden); // Start hidden
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to create PauseMenuWidget!"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PauseMenuClass is not set in the editor!"));
+    }
 }
 
 // Called every frame
@@ -153,42 +172,24 @@ void APlayerHamster::LookUp(float Value)
     }
 }
 
-void APlayerHamster::TogglePauseMenu() // Toggle Pause Menu
+void APlayerHamster::TogglePauseMenu()
 {
-    // Get the pause menu class
-    if (!PauseMenuClass) return;
+    //if (!PauseMenuWidget) return;
 
-    if (!PauseMenuWidget) // Check if the pause menu widget is already created
+    bool bGamePaused = UGameplayStatics::IsGamePaused(GetWorld());
+
+    if (bGamePaused)
     {
-        PauseMenuWidget = CreateWidget<UUserWidget>(GetWorld(), PauseMenuClass);
-        if (PauseMenuWidget) // Check if the pause menu widget was successfully created
-        {
-            PauseMenuWidget->AddToViewport();
-        }
-    }
-
-    bIsPaused = !bIsPaused; // Toggle the pause state
-    APlayerController* PlayerController = Cast<APlayerController>(GetController());
-
-    if (bIsPaused) // If the game is paused
-    {
-        UGameplayStatics::SetGamePaused(GetWorld(), true); // Pause the game
-        PlayerController->SetInputMode(FInputModeUIOnly()); // Set the input mode
-        PlayerController->bShowMouseCursor = true; // Show the mouse cursor
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden);
+        UGameplayStatics::SetGamePaused(GetWorld(), false);
     }
     else
     {
-        UGameplayStatics::SetGamePaused(GetWorld(), false); // Unpause the game
-        PlayerController->SetInputMode(FInputModeGameOnly()); // Set the input mode
-        PlayerController->bShowMouseCursor = false; // Hide the mouse cursor
-
-        if (PauseMenuWidget) // Check if the pause menu widget was successfully created
-        {
-            PauseMenuWidget->RemoveFromParent(); // Remove the pause menu widget
-        }
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
+        UGameplayStatics::SetGamePaused(GetWorld(), true);
     }
-
 }
+
 
 float APlayerHamster::GetSpeed() const
 {

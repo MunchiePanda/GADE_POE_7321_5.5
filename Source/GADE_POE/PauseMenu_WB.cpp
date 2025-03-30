@@ -16,7 +16,7 @@ void UPauseMenu_WB::NativeConstruct()
     if (QuitButton) QuitButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::QuitGame);
 
     // Pause the game when the menu is opened
-    UGameplayStatics::SetGamePaused(GetWorld(), true);
+    //UGameplayStatics::SetGamePaused(GetWorld(), true);
 }
 
 void UPauseMenu_WB::RestartGame()
@@ -37,5 +37,33 @@ void UPauseMenu_WB::QuitGame()
     if (PlayerController) 
     {
 		UKismetSystemLibrary::QuitGame(GetWorld(), PlayerController, EQuitPreference::Quit, false); // Quit the game
+    }
+}
+
+void UPauseMenu_WB::TogglePauseMenu()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    APlayerController* PlayerController = World->GetFirstPlayerController();
+    if (!PlayerController) return;
+
+    bool bIsPaused = UGameplayStatics::IsGamePaused(World);
+
+    if (bIsPaused)
+    {
+        // Unpause the game and remove menu
+        RemoveFromParent();
+        UGameplayStatics::SetGamePaused(World, false);
+        PlayerController->SetInputMode(FInputModeGameOnly()); // Restore game input
+        PlayerController->bShowMouseCursor = false;
+    }
+	if (!bIsPaused)
+    {
+        // Pause the game and show menu
+        AddToViewport();
+        UGameplayStatics::SetGamePaused(World, true);
+        PlayerController->SetInputMode(FInputModeUIOnly()); // UI-only input
+        PlayerController->bShowMouseCursor = true;
     }
 }

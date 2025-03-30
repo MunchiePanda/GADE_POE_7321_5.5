@@ -26,6 +26,8 @@ private:
 
     UFUNCTION()
 	void QuitGame(); // Quits the game
+
+	
 public:
     UPROPERTY(meta = (BindWidget))
 	class UButton* RestartButton; // The button to restart the game
@@ -35,4 +37,7 @@ public:
 
     UPROPERTY(meta = (BindWidget))
 	class UButton* QuitButton; // The button to quit the game
+
+	UFUNCTION(BlueprintCallable)
+	void TogglePauseMenu(); // Toggles the pause menu
 };

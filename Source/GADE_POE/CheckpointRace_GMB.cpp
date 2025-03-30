@@ -25,7 +25,12 @@ void ACheckpointRace_GMB::BeginPlay()
         }
     }
 
-   
+    // Ensure input is enabled after restart
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (PC)
+    {
+        EnableInput(PC);
+    }
 
 }
 

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Blueprint/UserWidget.h"
+#include "PauseMenu_WB.h"
 #include "PlayerHamster.generated.h"
 
 class UStaticMeshComponent;
@@ -80,13 +81,12 @@ private:
 	UCameraComponent* Camera;
 
 	//reference to spline
-
-
 	UPROPERTY(VisibleAnywhere, Category = "Spline")
 	float MaxDistanceFromSpline = 200.f;
-
+	UPROPERTY(VisibleAnywhere, Category = "Spline")
+	TSubclassOf<UUserWidget> PauseMenuWidgetClass;
 	UPROPERTY()
-	UUserWidget* PauseMenuWidget;
+	UPauseMenu_WB* PauseMenuWidget;
 
 	bool bIsPaused = false;
 };
