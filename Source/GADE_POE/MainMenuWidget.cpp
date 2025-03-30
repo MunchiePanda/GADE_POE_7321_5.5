@@ -8,25 +8,25 @@
 
 void UMainMenuWidget::OnMapOneClicked()
 {
-    LoadLevelAsync(FName("CheckpointMap"));
+    LoadLevelAsync(FName("CheckpointDialogueLVL")); // Open the dialogue level and then load the race level
 }
 
 void UMainMenuWidget::OnMapTwoClicked()
 {
-    LoadLevelAsync(FName("BeginnerMap"));
+	LoadLevelAsync(FName("BeginnerMap")); // Load the beginner map
 }
 
 void UMainMenuWidget::OnMapThreeClicked()
 {
-    LoadLevelAsync(FName("AdvancedMap"));
+	LoadLevelAsync(FName("AdvancedMap")); // Load the advanced map
 }
 
 void UMainMenuWidget::ShowLoadingScreen()
 {
-    if (LoadingScreenWidgetClass)
+    if (LoadingScreenWidgetClass) // Check if the class is set in the editor
     {
-        LoadingScreenWidget = CreateWidget<UUserWidget>(GetWorld(), LoadingScreenWidgetClass);
-        if (LoadingScreenWidget)
+        LoadingScreenWidget = CreateWidget<UUserWidget>(GetWorld(), LoadingScreenWidgetClass); // Create the widget
+        if (LoadingScreenWidget) // Check if the widget was created successfully
         {
             LoadingScreenWidget->AddToViewport();
             LoadingProgressSlider = Cast<USlider>(LoadingScreenWidget->GetWidgetFromName(TEXT("LoadingProgressSlider")));
@@ -34,9 +34,9 @@ void UMainMenuWidget::ShowLoadingScreen()
     }
 }
 
-void UMainMenuWidget::HideLoadingScreen()
+void UMainMenuWidget::HideLoadingScreen() // Hide the loading screen
 {
-    if (LoadingScreenWidget)
+    if (LoadingScreenWidget) // Check if the widget exists
     {
         LoadingScreenWidget->RemoveFromParent();
         LoadingScreenWidget = nullptr;
@@ -44,21 +44,30 @@ void UMainMenuWidget::HideLoadingScreen()
     }
 }
 
-void UMainMenuWidget::LoadLevelAsync(const FName& LevelName)
+void UMainMenuWidget::LoadLevelAsync(const FName& LevelName) // Load the level
 {
-    ShowLoadingScreen();
+	if (LevelName.IsNone()) // Check if the level name is empty
+    {
+        UE_LOG(LogTemp, Error, TEXT("LoadLevelAsync called with an EMPTY level name!"));
+        return; // Exit if the level name is empty
+    }
 
-    FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
-    Streamable.RequestAsyncLoad(LevelName.ToString(), FStreamableDelegate::CreateLambda([this, LevelName]()
+    ShowLoadingScreen(); // Show the loading screen
+
+    // Delay opening the level by 2 seconds (simulating async load)
+    FTimerHandle TimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this, LevelName]() // Create a lambda function
         {
             HideLoadingScreen();
             UGameplayStatics::OpenLevel(this, LevelName);
-        }));
+        }, 2.0f, false);  // Adjust delay time if needed
+
+    UE_LOG(LogTemp, Warning, TEXT("Starting async load for level: %s"), *LevelName.ToString());
 }
 
-void UMainMenuWidget::UpdateLoadingProgress(float Progress)
+void UMainMenuWidget::UpdateLoadingProgress(float Progress) // Update the loading progress
 {
-    if (LoadingProgressSlider)
+    if (LoadingProgressSlider) // Check if the slider exists
     {
         LoadingProgressSlider->SetValue(Progress);
     }

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Dialogue_Data.h"
+#include "Components/Slider.h"
 #include "DialogueWidget.generated.h"
 
 /**
@@ -43,10 +44,24 @@ protected:
     UPROPERTY(meta = (BindWidget))
     class UButton* NextButton;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+    TSubclassOf<UUserWidget> LoadingScreenWidgetClass;
+
 private:
     /** Reference to Dialogue Data */
     UPROPERTY()
     UDialogue_Data* DialogueData;
 
+
+    UPROPERTY()
+    UUserWidget* LoadingScreenWidget;
+
+    UPROPERTY()
+    USlider* LoadingProgressSlider;
+
+	void ShowLoadingScreen(); // Show the loading screen
+    void HideLoadingScreen(); // Hide the loading screen
+    void LoadLevelAsync(const FName& LevelName); // Load a level asynchronously
+    void UpdateLoadingProgress(float Progress); // Update the loading progress
 
 };

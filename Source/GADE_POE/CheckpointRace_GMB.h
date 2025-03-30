@@ -2,6 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "CheckpointManager.h"
+#include "Blueprint/UserWidget.h"
+#include "RaceEndWidget.h"
 #include "CheckpointRace_GMB.generated.h"
 
 UCLASS()
@@ -13,6 +16,8 @@ public:
 	ACheckpointRace_GMB();
 
 	virtual void BeginPlay() override;
+	UFUNCTION()
+	void CheckRaceStatus(); // Function to check if race is over
 
 
 protected:
@@ -22,10 +27,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HUD")
 	TSubclassOf<UUserWidget> TutorialWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HUD")
+	TSubclassOf<UUserWidget> RaceEndWidgetClass;
+
 private:
 	UPROPERTY()
 	UUserWidget* RaceHUDWidget;
 
+	ACheckpointManager* CheckpointManager;
+
+	URaceEndWidget* RaceEndWidget;
 	void ShowTutorial();
 
 };

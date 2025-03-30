@@ -2,6 +2,8 @@
 #include "CheckpointActor.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "EngineUtils.h"
+#include "CheckpointRace_GMB.h"
 
 // Sets default values
 ACheckpointManager::ACheckpointManager()
@@ -77,7 +79,13 @@ void ACheckpointManager::PlayerReachedCheckpoint()
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Race Finished!"));
-			// You could add logic here to end the race, show UI, etc.
+
+			ACheckpointRace_GMB* GameMode = Cast<ACheckpointRace_GMB>(UGameplayStatics::GetGameMode(GetWorld()));
+			if (GameMode)
+			{
+				GameMode->CheckRaceStatus(); // Call the function
+			}
+			// add logic here to end the race, show UI, etc.
 		}
 	}
 
