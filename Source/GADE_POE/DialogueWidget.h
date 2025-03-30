@@ -47,6 +47,16 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UUserWidget> LoadingScreenWidgetClass;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+    AActor* CameraActor;
+
+    FVector InitialCameraPosition;
+    FVector FinalCameraPosition;
+
+    float CameraMoveSpeed = 10.0f; // Adjust as needed
+
+    void MoveCameraCloser();
+
 private:
     /** Reference to Dialogue Data */
     UPROPERTY()

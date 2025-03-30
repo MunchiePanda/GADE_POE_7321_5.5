@@ -9,10 +9,27 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
+#include "TimerManager.h"
+#include "Camera/CameraActor.h"
 
 void UDialogueWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+    // Find the Camera Actor in the level
+    CameraActor = UGameplayStatics::GetActorOfClass(GetWorld(), ACameraActor::StaticClass());
+
+    if (CameraActor)
+    {
+        InitialCameraPosition = CameraActor->GetActorLocation();
+        FinalCameraPosition = InitialCameraPosition + FVector(0, 0, -50); // Move camera slightly forward
+    }
+
+    // Get Player Controller
+    APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PlayerController && CameraActor)
+    {
+        PlayerController->SetViewTargetWithBlend(CameraActor, 1.0f); // 1-second smooth transition
+    }
 
     // Bind button click event
     if (NextButton)
@@ -53,12 +70,29 @@ void UDialogueWidget::OnNextButtonClicked()
     {
         FDialogue_Item NextDialogue = DialogueData->GetNextDialogue();
         DisplayDialogue(NextDialogue);
+
+		// Move camera closer to the hamster
+		MoveCameraCloser();
     }
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("Dialogue finished!"));
         RemoveFromParent(); // Hide UI when dialogue ends
         LoadLevelAsync(FName("CheckpointMap")); // Load the next level
+    }
+}
+
+void UDialogueWidget::MoveCameraCloser()
+{
+
+    if (CameraActor)
+    {
+        FVector CurrentPosition = CameraActor->GetActorLocation();
+
+        // Move towards the final position smoothly
+        FVector NewPosition = FMath::VInterpTo(CurrentPosition, FinalCameraPosition, GetWorld()->GetDeltaSeconds(), CameraMoveSpeed);
+
+        CameraActor->SetActorLocation(NewPosition);
     }
 }
 
