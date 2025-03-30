@@ -3,6 +3,7 @@
 #include "PlayerHamster.h"
 #include "CheckpointManager.h"
 #include "EngineUtils.h"
+#include "Kismet/GameplayStatics.h"
 void URaceHUDWidget::SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps)
 {
     CurrentSpeed = Speed;
@@ -15,6 +16,11 @@ void URaceHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
+    // Stop updating the timer if the game is paused
+    if (UGameplayStatics::IsGamePaused(GetWorld()))
+    {
+        return;
+    }
 	ElapsedTime += InDeltaTime;
 
 }
