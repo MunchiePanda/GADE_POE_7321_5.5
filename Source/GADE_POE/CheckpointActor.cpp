@@ -4,13 +4,17 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+
 // Sets default values
 ACheckpointActor::ACheckpointActor()
 {
     PrimaryActorTick.bCanEverTick = true;
 
+    
+
     // Bind overlap event
     OnActorBeginOverlap.AddDynamic(this, &ACheckpointActor::OnPlayerEnterCheckpoint);
+
 }
 
 // Called when the game starts or when spawned
@@ -46,3 +50,19 @@ void ACheckpointActor::OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* 
         UE_LOG(LogTemp, Error, TEXT("CheckpointManager not found in the level!"));
     }
 }
+/*
+void ACheckpointActor::SetCheckpointColor(FLinearColor NewColor)
+{ 
+    if (CheckpointMesh) // Check if CheckpointMesh is valid
+    {
+		UMaterialInstanceDynamic* DynMaterial = CheckpointMesh->CreateAndSetMaterialInstanceDynamic(0); // Create dynamic material instance
+        if (DynMaterial) // Check if dynamic material instance is valid
+        {
+            DynMaterial->SetVectorParameterValue("Color", NewColor); // Set color
+        }
+    }
+}
+*/
+
+
+
