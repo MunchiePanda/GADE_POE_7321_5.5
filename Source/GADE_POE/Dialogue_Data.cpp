@@ -17,29 +17,29 @@ bool UDialogue_Data::LoadDialogue(const FString& FileName)
     UE_LOG(LogTemp, Warning, TEXT("Attempting to load JSON from: %s"), *FilePath);
 
     FString JsonString;
-    if (FFileHelper::LoadFileToString(JsonString, *FilePath)) // Load the JSON file
+    if (FFileHelper::LoadFileToString(JsonString, *FilePath))
     {
         UE_LOG(LogTemp, Warning, TEXT("Successfully loaded JSON file!"));
 
-        TArray<TSharedPtr<FJsonValue>> JsonArray; // Array to hold the JSON data
+        TArray<TSharedPtr<FJsonValue>> JsonArray;
         TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
 
         if (FJsonSerializer::Deserialize(Reader, JsonArray))
-		{ // Deserialize the JSON data
+        {
             UE_LOG(LogTemp, Warning, TEXT("Found %d dialogue entries"), JsonArray.Num());
-             // Iterate through the JSON array
+
             for (const TSharedPtr<FJsonValue>& JsonValue : JsonArray)
             {
                 if (!JsonValue.IsValid() || !JsonValue->AsObject().IsValid())
                 {
                     UE_LOG(LogTemp, Error, TEXT("Invalid JSON entry detected! Skipping..."));
-					continue; // Skip invalid entries
+                    continue;
                 }
 
-				FDialogue_Item DialogueItem; // Create a new dialogue item
+                FDialogue_Item DialogueItem;
                 if (FJsonObjectConverter::JsonObjectToUStruct(JsonValue->AsObject().ToSharedRef(), &DialogueItem))
                 {
-					DialogueQueue.Enqueue(DialogueItem); // Add the dialogue item to the queue
+                    DialogueQueue.Enqueue(DialogueItem);
 
                     UE_LOG(LogTemp, Warning, TEXT("Loaded Dialogue: %s - %s"),
                         *DialogueItem.Name, *DialogueItem.DialogueText);

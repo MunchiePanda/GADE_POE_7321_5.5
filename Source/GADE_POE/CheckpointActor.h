@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h" 
+#include "GameFramework/Actor.h"
 #include "CheckpointActor.generated.h"
 
 UCLASS()
@@ -26,11 +26,5 @@ public:
 	/** Called when player overlaps with checkpoint */
 	UFUNCTION()
 	void OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* OtherActor); // Function to call when player enters checkpoint
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Checkpoint") 
-	UStaticMeshComponent* CheckpointMesh; // Mesh for checkpoint
-
-	//UFUNCTION()
-	//void SetCheckpointColor(FLinearColor NewColor);
 
 };

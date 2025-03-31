@@ -20,7 +20,6 @@ class GADE_POE_API UDialogueWidget : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 
-	/** Displays the dialogue */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void DisplayDialogue(FDialogue_Item DialogueItem);
 
@@ -36,10 +35,6 @@ protected:
     /** Text Block for Dialogue Text */
     UPROPERTY(meta = (BindWidget))
     class UTextBlock* DialogueTextBlock;
-
-	/** Text Block for Speaker Age */
-    UPROPERTY(meta = (BindWidget))
-    class UTextBlock* SpeakerAgeText;
 
     /** Image for Speaker Portrait */
     UPROPERTY(meta = (BindWidget))
@@ -69,23 +64,14 @@ private:
 
 
     UPROPERTY()
-    UUserWidget* LoadingScreenWidget; // Widget for loading screen
+    UUserWidget* LoadingScreenWidget;
 
     UPROPERTY()
-	USlider* LoadingProgressSlider; // Slider for loading progress
-
-    FString TargetText; // Text to be typed
-    FString TypedText; // Typed text
-    int32 CurrentCharIndex; // Current character index
-    FTimerHandle TypingTimer; // Timer for typing
+    USlider* LoadingProgressSlider;
 
 	void ShowLoadingScreen(); // Show the loading screen
     void HideLoadingScreen(); // Hide the loading screen
     void LoadLevelAsync(const FName& LevelName); // Load a level asynchronously
     void UpdateLoadingProgress(float Progress); // Update the loading progress
-
-    void StartTypingEffect(FString FullText); // Start the typing effect
-
-	void TypeNextLetter(); // Type the next letter
 
 };
