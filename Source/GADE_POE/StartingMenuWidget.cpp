@@ -1,7 +1,7 @@
 #include "StartingMenuWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"
-
+#include "Kismet/KismetSystemLibrary.h"
 void UStartingMenuWidget::OnStartClicked()
 {
     SwitchToMainMenu();
@@ -9,7 +9,9 @@ void UStartingMenuWidget::OnStartClicked()
 
 void UStartingMenuWidget::OnExitClicked()
 {
-    FGenericPlatformMisc::RequestExit(false);
+
+    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+    UKismetSystemLibrary::QuitGame(GetWorld(), PlayerController, EQuitPreference::Quit, false);
 }
 
 void UStartingMenuWidget::SwitchToMainMenu()

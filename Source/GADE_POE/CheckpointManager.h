@@ -60,10 +60,10 @@ public:
 	int32 GetTotalLaps() const { return TotalLaps; } // Get the total laps
 
 	UPROPERTY(EditAnywhere, Category = "Timer")
-	float InitialTime = 300.0f; // Initial time in seconds
+	float InitialTime = 20.0f; // Initial time in seconds
 
 	UPROPERTY(EditAnywhere, Category = "Timer")
-	float TimePerCheckpoint = 30.0f; // Time added 
+	float TimePerCheckpoint = 20.0f; // Time added
 
 	float RemainingTime;
 

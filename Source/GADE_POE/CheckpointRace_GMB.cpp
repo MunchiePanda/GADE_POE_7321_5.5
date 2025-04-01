@@ -44,8 +44,33 @@ void ACheckpointRace_GMB::BeginPlay()
 
 }
 
-void ACheckpointRace_GMB::CheckRaceStatus()
+void ACheckpointRace_GMB::CheckRaceStatus() 
 {
+
+    if (CheckpointManager && CheckpointManager->GetRemainingTime() <= 0.0f)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Race Finished!"));
+
+        // Remove the RaceHUD
+        if (RaceHUDWidget)
+        {
+            RaceHUDWidget->RemoveFromParent();
+            RaceHUDWidget = nullptr;
+        }
+
+        // Pause the game
+        UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+        // Show End Race UI
+        if (RaceEndWidgetClass)
+        {
+            RaceEndWidget = CreateWidget<URaceEndWidget>(GetWorld(), RaceEndWidgetClass);
+            if (RaceEndWidget)
+            {
+                RaceEndWidget->AddToViewport();
+            }
+        }
+    }
     if (CheckpointManager && CheckpointManager->GetRemainingCheckpoint() == 0 && CheckpointManager->GetCurrentLap() >= CheckpointManager->GetTotalLaps())
     {
         UE_LOG(LogTemp, Warning, TEXT("Race Finished!"));

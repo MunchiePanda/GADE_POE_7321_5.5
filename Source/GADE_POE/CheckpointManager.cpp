@@ -1,4 +1,4 @@
-#include "CheckpointManager.h"
+﻿#include "CheckpointManager.h"
 #include "CheckpointActor.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -32,6 +32,8 @@ void ACheckpointManager::BeginPlay()
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Checkpoint Manager Initialized! Stack Size: %d"), CheckpointStack.Size()); // Log stack size
+
+    GetNextCheckpoint();
 }
 
 // Called every frame
@@ -62,50 +64,55 @@ void ACheckpointManager::AddCheckpoint(ACheckpointActor* Checkpoint) // Add chec
     }
 }
 
-void ACheckpointManager::PlayerReachedCheckpoint()
+void ACheckpointManager::PlayerReachedCheckpoint() // Player reached a checkpoint
 {
     if (bCheckpointCleared) return;
-    bCheckpointCleared = true;
+    bCheckpointCleared = true; // Set bCheckpointCleared to true
 
     ACheckpointActor* ReachedCheckpoint;
-    if (CheckpointStack.Pop(ReachedCheckpoint))
+    if (CheckpointStack.Pop(ReachedCheckpoint)) // Get the checkpoint that was just passed
     {
-        UE_LOG(LogTemp, Warning, TEXT("Checkpoint Passed: %s"), *ReachedCheckpoint->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("Checkpoint Passed: %s"), *ReachedCheckpoint->GetName()); 
 
-        // Add time to the timer
+        // Hide the indicator on the checkpoint that was just passed
+        if (IsValid(ReachedCheckpoint))
+        {
+            ReachedCheckpoint->SetCheckpointState(false);
+        }
+
         RemainingTime += TimePerCheckpoint;
     }
 
-    // If stack is empty, the player completed a lap
-    if (CheckpointStack.IsEmpty())
+    if (CheckpointStack.IsEmpty()) // Check if all checkpoints have been cleared
     {
         if (CurrentLap < TotalLaps)
         {
             CurrentLap++;
-            ResetCheckpoints(); // Refill the stack for next lap
+            ResetCheckpoints();
             UE_LOG(LogTemp, Warning, TEXT("Lap %d/%d Completed!"), CurrentLap - 1, TotalLaps);
         }
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("Race Finished!"));
-
             ACheckpointRace_GMB* GameMode = Cast<ACheckpointRace_GMB>(UGameplayStatics::GetGameMode(GetWorld()));
             if (GameMode)
             {
-                GameMode->CheckRaceStatus(); // Call the function
+                GameMode->CheckRaceStatus(); // Call the CheckRaceStatus function
             }
-            // add logic here to end the race, show UI, etc.
         }
     }
 
     GetWorldTimerManager().SetTimerForNextTick([this]() { bCheckpointCleared = false; });
 }
 
+
+
 ACheckpointActor* ACheckpointManager::GetNextCheckpoint() // Get the next checkpoint
 {
     ACheckpointActor* NextCheckpoint;
     if (CheckpointStack.Peek(NextCheckpoint) && IsValid(NextCheckpoint)) // Check if checkpoint is valid
     {
+        NextCheckpoint->SetCheckpointState(true);
         return NextCheckpoint;
     }
     return nullptr;

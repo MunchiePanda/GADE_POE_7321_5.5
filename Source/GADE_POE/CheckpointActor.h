@@ -27,4 +27,12 @@ public:
 	UFUNCTION()
 	void OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* OtherActor); // Function to call when player enters checkpoint
 
+	void SetCheckpointState(bool bIsNextCheckpoint);
+
+
+	/** Indicator (e.g., floating ring or glow effect) */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	UStaticMeshComponent* IndicatorMesh;
+
+
 };

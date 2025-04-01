@@ -9,6 +9,12 @@ ACheckpointActor::ACheckpointActor()
 {
     PrimaryActorTick.bCanEverTick = true;
 
+
+    // Create an indicator (e.g., floating arrow, glow effect)
+    IndicatorMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("IndicatorMesh"));
+    IndicatorMesh->SetupAttachment(RootComponent);
+    IndicatorMesh->SetVisibility(false); // Initially hidden
+
     // Bind overlap event
     OnActorBeginOverlap.AddDynamic(this, &ACheckpointActor::OnPlayerEnterCheckpoint);
 }
@@ -45,4 +51,9 @@ void ACheckpointActor::OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* 
 
         UE_LOG(LogTemp, Error, TEXT("CheckpointManager not found in the level!"));
     }
+}
+
+void ACheckpointActor::SetCheckpointState(bool bIsNextCheckpoint)
+{
+    IndicatorMesh->SetVisibility(bIsNextCheckpoint);
 }
