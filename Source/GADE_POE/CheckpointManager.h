@@ -70,6 +70,10 @@ public:
 	
 	void HandleTimerExpiry();
 
+
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* CheckpointReachedSound; // Sound effect for che
+
 private:
 	bool bCheckpointCleared = false; // Flag to prevent multiple calls
 

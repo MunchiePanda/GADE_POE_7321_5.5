@@ -80,6 +80,12 @@ void ACheckpointManager::PlayerReachedCheckpoint() // Player reached a checkpoin
             ReachedCheckpoint->SetCheckpointState(false);
         }
 
+        // Play the checkpoint reached sound
+        if (CheckpointReachedSound)
+        {
+            UGameplayStatics::PlaySoundAtLocation(this, CheckpointReachedSound, ReachedCheckpoint->GetActorLocation());
+        }
+
         RemainingTime += TimePerCheckpoint;
     }
 
