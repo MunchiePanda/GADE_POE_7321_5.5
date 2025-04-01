@@ -28,7 +28,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "HUD")
     FText GetLapText() const;
 
-
+    UFUNCTION(BlueprintCallable, Category = "HUD")
+    FText GetRemainingTimeText() const; // Add this functio
 
     /** Updates the race stats */
     void SetRaceStats(float Speed, float TimeElapsed, int32 CurrentLap, int32 TotalLaps);

@@ -54,8 +54,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	int32 GetCurrentLap() const { return CurrentLap; } // Get the current lap
 
+	float GetRemainingTime() const {return RemainingTime;} // Get the remaining time
+
 	UFUNCTION(BlueprintCallable, Category = "Checkpoints")
 	int32 GetTotalLaps() const { return TotalLaps; } // Get the total laps
+
+	UPROPERTY(EditAnywhere, Category = "Timer")
+	float InitialTime = 300.0f; // Initial time in seconds
+
+	UPROPERTY(EditAnywhere, Category = "Timer")
+	float TimePerCheckpoint = 30.0f; // Time added 
+
+	float RemainingTime;
+
+	
+	void HandleTimerExpiry();
 
 private:
 	bool bCheckpointCleared = false; // Flag to prevent multiple calls

@@ -72,4 +72,16 @@ FText URaceHUDWidget::GetLapText() const
     return FText::FromString(TEXT("Lap 0/0 | Checkpoints Left: 0"));
 }
 
+FText URaceHUDWidget::GetRemainingTimeText() const
+{
+    if (CheckpointManagerClass) // Check if CheckpointManagerClass is valid
+    { 
+		float RemainingTime = CheckpointManagerClass->GetRemainingTime(); // Get remaining time
+        int32 Minutes = FMath::FloorToInt(RemainingTime / 60);
+        int32 Seconds = FMath::FloorToInt(FMath::Fmod(RemainingTime, 60));
+		return FText::FromString(FString::Printf(TEXT("Remaining Time: %02d:%02d"), Minutes, Seconds)); // Return remaining time
+    }
+    return FText::FromString(TEXT("Remaining Time: 00:00"));
+}
+
 
