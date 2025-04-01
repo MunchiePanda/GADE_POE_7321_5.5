@@ -44,14 +44,21 @@ protected:
     UPROPERTY(meta = (BindWidget))
     class UButton* NextButton;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
-    TSubclassOf<UUserWidget> LoadingScreenWidgetClass;
+	/** Button to skip dialogue */
+	UPROPERTY(meta = (BindWidget))
+    class UTextBlock* AgeText;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI") // Reference to the loading screen widget class
+    TSubclassOf<UUserWidget> LoadingScreenWidgetClass; 
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") // Reference to the camera actor
     AActor* CameraActor;
 
-    FVector InitialCameraPosition;
-    FVector FinalCameraPosition;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dialogue")
+	TMap<FString, UTexture2D*> SpeakerPortraits; // Map to store speaker portraits
+
+	FVector InitialCameraPosition; // Initial camera position
+    FVector FinalCameraPosition;    // Final camera position
 
     float CameraMoveSpeed = 10.0f; // Adjust as needed
 
@@ -63,15 +70,24 @@ private:
     UDialogue_Data* DialogueData;
 
 
-    UPROPERTY()
+	UPROPERTY() // Reference to the loading screen widget
     UUserWidget* LoadingScreenWidget;
 
-    UPROPERTY()
+	UPROPERTY() // Reference to the loading progress slider
     USlider* LoadingProgressSlider;
 
 	void ShowLoadingScreen(); // Show the loading screen
     void HideLoadingScreen(); // Hide the loading screen
     void LoadLevelAsync(const FName& LevelName); // Load a level asynchronously
     void UpdateLoadingProgress(float Progress); // Update the loading progress
+
+    /** Typing Effects */
+    FString CurrentText;
+    FString DisplayedText;
+    int32 CurrentCharIndex;
+    FTimerHandle TypingTimerHandle;
+
+    void StartTypingEffect(const FString& FullText);
+    void TypeNextLetter();
 
 };

@@ -45,6 +45,7 @@ void UDialogueWidget::NativeConstruct()
     }
 }
 
+// Function to display dialogue
 void UDialogueWidget::DisplayDialogue(FDialogue_Item DialogueItem)
 {
     if (SpeakerNameText)
@@ -55,12 +56,22 @@ void UDialogueWidget::DisplayDialogue(FDialogue_Item DialogueItem)
     if (DialogueTextBlock)
     {
         DialogueTextBlock->SetText(FText::FromString(DialogueItem.DialogueText));
+		StartTypingEffect(DialogueItem.DialogueText); // Start typing effect
     }
 
-    if (SpeakerPortraitImage)
+    if (SpeakerPortraitImage && SpeakerPortraits.Contains(DialogueItem.SpeakerName)) //checks the speaker name (map key) 
     {
-        // Load portrait (you'll need a texture asset path in Blueprint)
+        SpeakerPortraitImage->SetBrushFromTexture(SpeakerPortraits[DialogueItem.SpeakerName]);
     }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("No portrait found for %s"), *DialogueItem.SpeakerName);
+    }
+
+    if (AgeText)
+	{
+        AgeText->SetText(FText::FromString(FString::Printf(TEXT("Age: %d"), DialogueItem.Age)));
+	}
 }
 
 
@@ -119,7 +130,7 @@ void UDialogueWidget::HideLoadingScreen()
     }
 }
 
-void UDialogueWidget::LoadLevelAsync(const FName& LevelName)
+void UDialogueWidget::LoadLevelAsync(const FName& LevelName) // Function to load a level asynchronously
 {
     if (LevelName.IsNone())
     {
@@ -146,5 +157,34 @@ void UDialogueWidget::UpdateLoadingProgress(float Progress)
     if (LoadingProgressSlider) // Check if the slider exists
     {
         LoadingProgressSlider->SetValue(Progress); // Update the slider value
+    }
+}
+
+
+void UDialogueWidget::StartTypingEffect(const FString& FullText)
+{
+    CurrentText = FullText;
+    DisplayedText = TEXT(""); // Reset displayed text
+    CurrentCharIndex = 0;     // Start from the first letter
+
+    // Start the typing effect by calling TypeNextLetter()
+	GetWorld()->GetTimerManager().SetTimer(TypingTimerHandle, this, &UDialogueWidget::TypeNextLetter, 0.05f, true); // Adjust the delay time if needed
+}
+
+void UDialogueWidget::TypeNextLetter() // Function to type the next letter
+{
+    if (CurrentCharIndex < CurrentText.Len()) // Check if there are more letters
+    {
+        DisplayedText.AppendChar(CurrentText[CurrentCharIndex]); // Append the next letter
+        if (DialogueTextBlock) // Check if the text block exists
+        {
+			DialogueTextBlock->SetText(FText::FromString(DisplayedText)); // Update the text block
+        }
+		CurrentCharIndex++; // Move to the next letter
+    }
+    else
+    {
+        // Stop the timer when the text is fully displayed
+        GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle); 
     }
 }
