@@ -10,7 +10,6 @@
 #include "RaceHUDWidget.h"
 #include "GameFramework/HUD.h"
 #include "PauseMenu_WB.h"
-
 // Sets default values
 APlayerHamster::APlayerHamster()
 {
@@ -41,6 +40,8 @@ APlayerHamster::APlayerHamster()
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
 
+
+   
 }
 
 
@@ -191,7 +192,7 @@ void APlayerHamster::TogglePauseMenu()
 }
 
 
-float APlayerHamster::GetSpeed() const
+float APlayerHamster::GetSpeed() const // Get the current speed
 {
 	return CurrentSpeed;
 }
