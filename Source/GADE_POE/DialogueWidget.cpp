@@ -59,13 +59,13 @@ void UDialogueWidget::DisplayDialogue(FDialogue_Item DialogueItem)
 		StartTypingEffect(DialogueItem.DialogueText); // Start typing effect
     }
 
-    if (SpeakerPortraitImage && SpeakerPortraits.Contains(DialogueItem.SpeakerName)) //checks the speaker name (map key) 
+    if (SpeakerPortraitImage && SpeakerPortraits.Contains(DialogueItem.SpeakerPortrait)) //checks the speaker name (map key) 
     {
-        SpeakerPortraitImage->SetBrushFromTexture(SpeakerPortraits[DialogueItem.SpeakerName]);
+        SpeakerPortraitImage->SetBrushFromTexture(SpeakerPortraits[DialogueItem.SpeakerPortrait]);
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("No portrait found for %s"), *DialogueItem.SpeakerName);
+        UE_LOG(LogTemp, Warning, TEXT("No portrait found for %s"), *DialogueItem.SpeakerPortrait);
     }
 
     if (AgeText)
