@@ -151,7 +151,7 @@ void ACheckpointManager::DebugCheckpointStatus()
 
     UE_LOG(LogTemp, Warning, TEXT("----- Debugging Checkpoints -----"));
 
-    CheckStackTemp<ACheckpointActor*> TempStack; // 🔥 Use a temporary stack
+    CheckStackTemp<ACheckpointActor*> TempStack; // Use a temporary stack
     while (!CheckpointStack.IsEmpty())
     {
         ACheckpointActor* Checkpoint;
