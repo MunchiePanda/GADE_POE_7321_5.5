@@ -13,7 +13,7 @@ ACheckpointActor::ACheckpointActor()
     // Create an indicator (e.g., floating arrow, glow effect)
     IndicatorMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("IndicatorMesh"));
     IndicatorMesh->SetupAttachment(RootComponent);
-    IndicatorMesh->SetVisibility(false); // Initially hidden
+    IndicatorMesh->SetVisibility(true); // Initially hidden
 
     // Bind overlap event
     OnActorBeginOverlap.AddDynamic(this, &ACheckpointActor::OnPlayerEnterCheckpoint);
@@ -34,17 +34,17 @@ void ACheckpointActor::Tick(float DeltaTime)
 
 void ACheckpointActor::OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* OtherActor)
 {
-    if (OtherActor && OtherActor->IsA(ACharacter::StaticClass()))
+    if (OtherActor && OtherActor->IsA(ACharacter::StaticClass())) // Check if the other actor is a character
     {
         UE_LOG(LogTemp, Warning, TEXT("Checkpoint Passed!"));
 
         // Find CheckpointManager in the level
-        for (TActorIterator<ACheckpointManager> It(GetWorld()); It; ++It)
+        for (TActorIterator<ACheckpointManager> It(GetWorld()); It; ++It) // Find CheckpointManager in the level
         {
             ACheckpointManager* CheckpointManager = *It;
             if (CheckpointManager)
             {
-                CheckpointManager->PlayerReachedCheckpoint();
+                CheckpointManager->PlayerReachedCheckpoint(); // Notify CheckpointManager
                 return;
             }
         }
@@ -53,7 +53,16 @@ void ACheckpointActor::OnPlayerEnterCheckpoint(AActor* OverlappedActor, AActor* 
     }
 }
 
-void ACheckpointActor::SetCheckpointState(bool bIsNextCheckpoint)
+void ACheckpointActor::SetCheckpointState(bool bIsNextCheckpoint, bool bIsPassed)
 {
-    IndicatorMesh->SetVisibility(bIsNextCheckpoint);
+    if (bIsNextCheckpoint)
+    {
+        IndicatorMesh->SetVisibility(true);
+        IndicatorMesh->SetMaterial(0, YellowMaterial); // Show yellow for next checkpoint
+    }
+    else if (bIsPassed)
+    {
+        IndicatorMesh->SetVisibility(true);
+        IndicatorMesh->SetMaterial(0, GreenMaterial); // Show green for passed checkpoint
+    }
 }

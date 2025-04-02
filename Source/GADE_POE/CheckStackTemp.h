@@ -1,62 +1,79 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
+
 template <typename T>
-/**
- * 
- */
 class GADE_POE_API CheckStackTemp
 {
+private:
+    struct Node
+    {
+        T Data;
+        Node* Next;
+        Node(const T& InData) : Data(InData), Next(nullptr) {}
+    };
+
+    Node* Top;
+    int32 StackSize;
+
 public:
-    CheckStackTemp() {}
+    CheckStackTemp() : Top(nullptr), StackSize(0) {}
     ~CheckStackTemp() { Clear(); }
 
-    /** Pushes an item onto the stack */
+    /** Push an item onto the stack */
     void Push(const T& Item)
     {
-        StackArray.Add(Item);
+        Node* NewNode = new Node(Item);
+        NewNode->Next = Top;
+        Top = NewNode;
+        StackSize++;
     }
 
     /** Pops the top item from the stack */
     bool Pop(T& OutItem)
     {
-        if (StackArray.Num() == 0)
+        if (IsEmpty())
             return false;
 
-        OutItem = StackArray.Last();
-        StackArray.RemoveAt(StackArray.Num() - 1);
+        Node* TempNode = Top; // Store the top node
+        OutItem = Top->Data;
+        Top = Top->Next; // Move the top pointer
+        delete TempNode;
+        StackSize--;
         return true;
     }
 
-    /** Returns the top item without removing it */
+    /** Peek at the top item without removing it */
     bool Peek(T& OutItem) const
     {
-        if (StackArray.Num() == 0)
+        if (IsEmpty())
             return false;
 
-        OutItem = StackArray.Last();
+        OutItem = Top->Data;
         return true;
     }
 
-    /** Checks if the stack is empty */
+    /** Check if the stack is empty */
     bool IsEmpty() const
     {
-        return StackArray.Num() == 0;
+        return Top == nullptr;
     }
 
-    /** Clears the stack */
+    /** Clear the stack */
     void Clear()
     {
-        StackArray.Empty();
+        while (!IsEmpty())
+        {
+            Node* TempNode = Top;
+            Top = Top->Next;
+            delete TempNode;
+        }
+        StackSize = 0;
     }
 
+    /** Get the number of elements in the stack */
     int32 Size() const
     {
-        return StackArray.Num();
+        return StackSize;
     }
-
-private:
-    TArray<T> StackArray; // Internal storage for stack elements
 };
