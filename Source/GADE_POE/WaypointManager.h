@@ -13,19 +13,16 @@ class GADE_POE_API AWaypointManager : public AActor
 public:
     AWaypointManager();
 
-protected:
     UPROPERTY(EditAnywhere, Category = "Waypoints")
     TArray<AActor*> Waypoints;
 
-    UPROPERTY(VisibleAnywhere, Category = "Waypoints")
-    UCustomLinkedList* WaypointList;
+    UFUNCTION(BlueprintCallable, Category = "Waypoints")
+    AActor* GetWaypoint(int32 Index);
 
+protected:
     virtual void BeginPlay() override;
 
-public:
-    UFUNCTION(BlueprintCallable, Category = "Waypoints")
-    AActor* GetWaypoint(int32 Index) const;
-
-    UFUNCTION(BlueprintCallable, Category = "Waypoints")
-    int32 GetWaypointCount() const;
+private:
+    UPROPERTY()
+    UCustomLinkedList* WaypointList;
 };
