@@ -45,14 +45,17 @@ AActor* AWaypointManager::GetWaypoint(int32 Index)
 {
     if (Waypoints.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("WaypointManager: No waypoints assigned!"));
+        UE_LOG(LogTemp, Error, TEXT("WaypointManager: No waypoints assigned! Cannot get index."));
         return nullptr;
     }
 
     int32 WrappedIndex = Index % Waypoints.Num();
+
     if (Waypoints.IsValidIndex(WrappedIndex))
     {
         return Waypoints[WrappedIndex];
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("WaypointManager: Invalid wrapped index: %d"), WrappedIndex);
     return nullptr;
 }
