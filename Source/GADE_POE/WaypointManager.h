@@ -22,7 +22,7 @@ public:
 protected:
     virtual void BeginPlay() override;
 
-private:
+public:
     UPROPERTY()
     UCustomLinkedList* WaypointList;
 };

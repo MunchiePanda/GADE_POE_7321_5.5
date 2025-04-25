@@ -26,4 +26,11 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "LinkedList")
     void Clear();
+
+    // NEW FUNCTIONS
+    UFUNCTION(BlueprintCallable, Category = "LinkedList")
+    AActor* GetFirst() const;
+
+    UFUNCTION(BlueprintCallable, Category = "LinkedList")
+    AActor* GetNext(AActor* Current) const;
 };

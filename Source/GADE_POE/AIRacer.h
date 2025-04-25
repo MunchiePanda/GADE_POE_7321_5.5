@@ -2,10 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/FloatingPawnMovement.h"
 #include "AIRacer.generated.h"
-
-class AWaypointManager;
-class UNavigationSystemV1;
 
 UCLASS()
 class GADE_POE_API AAIRacer : public APawn
@@ -15,30 +13,15 @@ class GADE_POE_API AAIRacer : public APawn
 public:
     AAIRacer();
 
-protected:
-    UPROPERTY(VisibleAnywhere, Category = "Components")
-    class UStaticMeshComponent* Mesh;
+    UPROPERTY(VisibleAnywhere)
+    UFloatingPawnMovement* MovementComponent;
 
-    UPROPERTY(EditAnywhere, Category = "AI")
-    float MoveSpeed;
+    UPROPERTY(VisibleAnywhere, Category = "Mesh")
+    UStaticMeshComponent* Mesh;
 
-    UPROPERTY(VisibleAnywhere, Category = "AI")
-    int32 CurrentWaypointIndex;
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 LapCount = 0;
 
-    UPROPERTY(VisibleAnywhere, Category = "AI")
-    AWaypointManager* WaypointManager;
-
-    UPROPERTY(Transient)
-    UNavigationSystemV1* NavSystem;
-
-    virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
-
-    UFUNCTION()
-    void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-        bool bFromSweep, const FHitResult& SweepResult);
-
-private:
-    void MoveToNextWaypoint();
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 WaypointsPassed = 0;
 };

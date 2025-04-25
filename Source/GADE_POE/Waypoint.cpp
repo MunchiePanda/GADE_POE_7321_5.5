@@ -1,6 +1,8 @@
 #include "Waypoint.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "AIRacer.h"
+#include "AIRacerContoller.h"
 
 AWaypoint::AWaypoint()
 {
@@ -8,7 +10,7 @@ AWaypoint::AWaypoint()
 
     TriggerSphere = CreateDefaultSubobject<USphereComponent>(TEXT("TriggerSphere"));
     RootComponent = TriggerSphere;
-    TriggerSphere->SetSphereRadius(200.0f); // 2m radius
+    TriggerSphere->SetSphereRadius(200.0f);
     TriggerSphere->SetCollisionProfileName(TEXT("Trigger"));
 
     VisualMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VisualMesh"));
@@ -22,5 +24,12 @@ void AWaypoint::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor*
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
     bool bFromSweep, const FHitResult& SweepResult)
 {
-    // Logic handled by AIRacer
+    if (AAIRacer* Racer = Cast<AAIRacer>(OtherActor))
+    {
+        AController* Controller = Racer->GetController();
+        if (AAIRacerContoller* AIRacerContoller = Cast<AAIRacerContoller>(Controller))
+        {
+            AIRacerContoller->OnWaypointReached(this);
+        }
+    }
 }
