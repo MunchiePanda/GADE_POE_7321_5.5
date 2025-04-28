@@ -36,10 +36,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
     float Acceleration;
-
+  // Set attributes based on racer type
+    void SetupRacerAttributes();
 protected:
     virtual void BeginPlay() override;
 
-    // Set attributes based on racer type
-    void SetupRacerAttributes();
+  
 };
