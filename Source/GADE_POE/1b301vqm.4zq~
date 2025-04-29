@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AIRacerFactoryBase.h"
-#include "RacerSpawnPoint.h"
+//#include "RacerSpawnPoint.h"
 #include "AIRacerFactory.generated.h"
 
 UCLASS(Blueprintable)
@@ -47,10 +47,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
     TSubclassOf<class AAIRacer> SlowRacerClass;
 
-   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
-    TSubclassOf<ARacerSpawnPoint> SpawnPointClass;
+   // UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
+    //TSubclassOf<ARacerSpawnPoint> SpawnPointClass;
 
 private:
     TArray<AAIRacer*> SpawnedRacers;
-    TArray<ARacerSpawnPoint*> SpawnPoints;
+    //TArray<ARacerSpawnPoint*> SpawnPoints;
 };

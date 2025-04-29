@@ -1,45 +1,38 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/FloatingPawnMovement.h"
+#include "GameFramework/Character.h"
 #include "RacerTypes.h"
 #include "AIRacer.generated.h"
 
 UCLASS()
-class GADE_POE_API AAIRacer : public APawn
+class GADE_POE_API AAIRacer : public ACharacter
 {
     GENERATED_BODY()
 
 public:
     AAIRacer();
 
-    UPROPERTY(VisibleAnywhere)
-    UFloatingPawnMovement* MovementComponent; // Reference to the movement component
-
     UPROPERTY(VisibleAnywhere, Category = "Mesh")
-	UStaticMeshComponent* Mesh; // Reference to the mesh component
+    UStaticMeshComponent* RacerMesh;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 LapCount = 0; // Number of laps completed
+    int32 LapCount = 0;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-	int32 WaypointsPassed = 0; // Number of waypoints passed
-
-    // Racer type
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    ERacerType RacerType; // Racer type
-
-    // Attributes
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-	float MaxSpeed; // Maximum speed of the racer
+    int32 WaypointsPassed = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float Acceleration;
-  // Set attributes based on racer type
+    ERacerType RacerType;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
+    float MaxSpeed;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
+    float MaxAcceleration; // Renamed to match UCharacterMovementComponent terminology
+
     void SetupRacerAttributes();
-protected:
-    virtual void BeginPlay() override; 
 
-  
+protected:
+    virtual void BeginPlay() override;
 };

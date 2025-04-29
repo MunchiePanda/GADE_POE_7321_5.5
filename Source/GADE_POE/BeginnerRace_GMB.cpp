@@ -1,25 +1,31 @@
 #include "BeginnerRace_GMB.h"
-
+#include "Spectator.h"
+#include "TimerManager.h"
+#include "EngineUtils.h" // For TActorIterator
 ABeginnerRace_GMB::ABeginnerRace_GMB()
 {
-    RacerFactory = CreateDefaultSubobject<UAIRacerFactory>(TEXT("RacerFactory"));
 }
 
 void ABeginnerRace_GMB::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (RacerFactory)
+    // Find all spectators in the level
+    for (TActorIterator<ASpectator> It(GetWorld()); It; ++It)
     {
-        // Set the racer classes in the factory before spawning
-        RacerFactory->FastRacerClass = FastRacerClass;
-        RacerFactory->MediumRacerClass = MediumRacerClass;
-        RacerFactory->SlowRacerClass = SlowRacerClass;
+        Spectators.Add(*It);
+    }
 
-        RacerFactory->SpawnRacersWithDefaults(GetWorld());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("BeginnerRace_GMB: RacerFactory is null!"));
-    }
+    // Test Disappointed state after 10 seconds (simulating a race event)
+    FTimerHandle TimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+        {
+            for (ASpectator* Spectator : Spectators)
+            {
+                if (Spectator)
+                {
+                    Spectator->BeDisappointed();
+                }
+            }
+        }, 10.0f, false);
 }

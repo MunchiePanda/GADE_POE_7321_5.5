@@ -1,5 +1,6 @@
 #include "AIRacerFactory.h"
 #include "NavigationSystem.h"
+#include "EngineUtils.h" // For TActorIterator
 
 AAIRacerFactory::AAIRacerFactory()
 {
@@ -17,6 +18,7 @@ AAIRacerFactory::AAIRacerFactory()
     {
         SpawnPointClass = SpawnPointClassFinder.Class;
     }
+	
     
 }
 
@@ -25,6 +27,7 @@ void AAIRacerFactory::BeginPlay()
     Super::BeginPlay();
 
     // Find all ARacerSpawnPoint actors in the level
+    
     SpawnPoints.Empty();
     for (TActorIterator<ARacerSpawnPoint> It(GetWorld(), SpawnPointClass); It; ++It)
     {
@@ -43,6 +46,7 @@ void AAIRacerFactory::BeginPlay()
     }
 
     SpawnRacersWithDefaults(GetWorld());
+	
 }
 
 AAIRacer* AAIRacerFactory::CreateRacer(UWorld* World, ERacerType RacerType, const FVector& SpawnLocation, const FRotator& InSpawnRotation)
@@ -78,14 +82,18 @@ AAIRacer* AAIRacerFactory::CreateRacer(UWorld* World, ERacerType RacerType, cons
 
     FNavLocation NavLocation;
     UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(World);
-    if (!NavSystem || !NavSystem->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(100.0f, 100.0f, 100.0f)))
+    FVector FinalSpawnLocation = SpawnLocation;
+    if (NavSystem && NavSystem->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(100.0f, 100.0f, 100.0f)))
     {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is not on NavMesh"), *SpawnLocation.ToString());
-        return nullptr;
+        FinalSpawnLocation = NavLocation.Location;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is not on NavMesh, using original location"), *SpawnLocation.ToString());
     }
 
     FActorSpawnParameters SpawnParams;
-    AAIRacer* NewRacer = World->SpawnActor<AAIRacer>(SelectedClass, NavLocation.Location, InSpawnRotation, SpawnParams);
+    AAIRacer* NewRacer = World->SpawnActor<AAIRacer>(SelectedClass, FinalSpawnLocation, InSpawnRotation, SpawnParams);
     if (NewRacer)
     {
         NewRacer->RacerType = RacerType;
@@ -122,6 +130,7 @@ void AAIRacerFactory::SpawnRacers(UWorld* World, int32 InMaxRacers, float InFast
     for (int32 i = 0; i < RacersToSpawn; i++)
     {
         FVector SpawnLocation = SpawnPoints[i]->GetActorLocation();
+        SpawnLocation.Z += 190.0f; // Increased offset to ensure clearance
 
         float RandomValue = FMath::FRand();
         ERacerType RacerType;
