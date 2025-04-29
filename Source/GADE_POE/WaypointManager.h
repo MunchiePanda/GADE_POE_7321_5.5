@@ -5,10 +5,10 @@
 #include "CustomLinkedList.h"
 #include "WaypointManager.generated.h"
 
-UCLASS()
+UCLASS() //WaypointManager
 class GADE_POE_API AWaypointManager : public AActor
 {
-    GENERATED_BODY()
+    GENERATED_BODY() 
 
 public:
     AWaypointManager();
@@ -24,5 +24,5 @@ protected:
 
 public:
     UPROPERTY()
-    UCustomLinkedList* WaypointList;
+	UCustomLinkedList* WaypointList; // Linked list to store waypoints
 };

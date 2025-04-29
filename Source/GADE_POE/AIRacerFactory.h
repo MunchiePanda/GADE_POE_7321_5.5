@@ -2,19 +2,24 @@
 
 #include "CoreMinimal.h"
 #include "AIRacerFactoryBase.h"
+#include "RacerSpawnPoint.h"
 #include "AIRacerFactory.generated.h"
 
 UCLASS(Blueprintable)
-class GADE_POE_API UAIRacerFactory : public UAIRacerFactoryBase
+class GADE_POE_API AAIRacerFactory : public AAIRacerFactoryBase
 {
     GENERATED_BODY()
 
 public:
-    UAIRacerFactory();
+    AAIRacerFactory();
 
+protected:
+    virtual void BeginPlay() override;
+
+public:
     virtual AAIRacer* CreateRacer(UWorld* World, ERacerType RacerType, const FVector& SpawnLocation, const FRotator& SpawnRotation) override;
 
-    virtual void SpawnRacers(UWorld* World, int32 MaxRacers, float FastChance, float MediumChance, float SlowChance, const FVector& BaseSpawnLocation, const FRotator& SpawnRotation) override;
+    virtual void SpawnRacers(UWorld* World, int32 MaxRacers, float FastChance, float MediumChance, float SlowChance, const FRotator& SpawnRotation) override;
 
     virtual void SpawnRacersWithDefaults(UWorld* World) override;
 
@@ -31,16 +36,21 @@ public:
     float SlowChance = 0.3f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
-    FVector BaseSpawnLocation = FVector(31000.0f, -65000.0f, 50.0f);
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
     FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
 
-    // Moved to public non-UPROPERTY for internal use
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
     TSubclassOf<class AAIRacer> FastRacerClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
     TSubclassOf<class AAIRacer> MediumRacerClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
     TSubclassOf<class AAIRacer> SlowRacerClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer Factory")
+    TSubclassOf<ARacerSpawnPoint> SpawnPointClass;
 
 private:
     TArray<AAIRacer*> SpawnedRacers;
+    TArray<ARacerSpawnPoint*> SpawnPoints;
 };

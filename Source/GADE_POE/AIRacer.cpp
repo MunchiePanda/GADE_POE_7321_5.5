@@ -1,7 +1,7 @@
 #include "AIRacer.h"
 #include "Components/StaticMeshComponent.h"
 
-AAIRacer::AAIRacer()
+AAIRacer::AAIRacer() // Constructor
 {
     PrimaryActorTick.bCanEverTick = false;
 
@@ -22,6 +22,7 @@ void AAIRacer::BeginPlay()
     SetupRacerAttributes();
 }
 
+// Sets the racer's attributes based on the racer type
 void AAIRacer::SetupRacerAttributes()
 {
     switch (RacerType)
@@ -40,6 +41,7 @@ void AAIRacer::SetupRacerAttributes()
         break;
     }
 
+    // Update movement component attributes
     if (MovementComponent)
     {
         MovementComponent->MaxSpeed = MaxSpeed;

@@ -15,31 +15,31 @@ public:
     AAIRacer();
 
     UPROPERTY(VisibleAnywhere)
-    UFloatingPawnMovement* MovementComponent;
+    UFloatingPawnMovement* MovementComponent; // Reference to the movement component
 
     UPROPERTY(VisibleAnywhere, Category = "Mesh")
-    UStaticMeshComponent* Mesh;
+	UStaticMeshComponent* Mesh; // Reference to the mesh component
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 LapCount = 0;
+    int32 LapCount = 0; // Number of laps completed
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 WaypointsPassed = 0;
+	int32 WaypointsPassed = 0; // Number of waypoints passed
 
     // Racer type
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    ERacerType RacerType;
+    ERacerType RacerType; // Racer type
 
     // Attributes
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxSpeed;
+	float MaxSpeed; // Maximum speed of the racer
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
     float Acceleration;
   // Set attributes based on racer type
     void SetupRacerAttributes();
 protected:
-    virtual void BeginPlay() override;
+    virtual void BeginPlay() override; 
 
   
 };

@@ -5,7 +5,7 @@
 AWaypointManager::AWaypointManager()
 {
     PrimaryActorTick.bCanEverTick = false;
-    WaypointList = CreateDefaultSubobject<UCustomLinkedList>(TEXT("WaypointList"));
+	WaypointList = CreateDefaultSubobject<UCustomLinkedList>(TEXT("WaypointList")); // Create the linked list
 }
 
 void AWaypointManager::BeginPlay()
@@ -31,7 +31,7 @@ void AWaypointManager::BeginPlay()
         }
     }
 
-    if (Waypoints.Num() == 0)
+    if (Waypoints.Num() == 0) // No waypoints found
     {
         UE_LOG(LogTemp, Warning, TEXT("WaypointManager: No waypoints found in level!"));
     }
@@ -41,7 +41,9 @@ void AWaypointManager::BeginPlay()
     }
 }
 
-AActor* AWaypointManager::GetWaypoint(int32 Index)
+
+// Get a waypoint by index
+AActor* AWaypointManager::GetWaypoint(int32 Index) 
 {
     if (Waypoints.Num() == 0)
     {
@@ -49,13 +51,15 @@ AActor* AWaypointManager::GetWaypoint(int32 Index)
         return nullptr;
     }
 
-    int32 WrappedIndex = Index % Waypoints.Num();
+    int32 WrappedIndex = Index % Waypoints.Num(); // Loop back to start
 
+
+    // Check if the wrapped index is valid
     if (Waypoints.IsValidIndex(WrappedIndex))
     {
         return Waypoints[WrappedIndex];
     }
 
     UE_LOG(LogTemp, Warning, TEXT("WaypointManager: Invalid wrapped index: %d"), WrappedIndex);
-    return nullptr;
+    return nullptr; // Return null if the index is invalid
 }

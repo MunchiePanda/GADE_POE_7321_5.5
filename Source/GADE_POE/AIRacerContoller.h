@@ -19,16 +19,16 @@ public:
     virtual void BeginPlay() override;
 
     UFUNCTION()
-    void OnWaypointReached(AActor* ReachedWaypoint);
+    void OnWaypointReached(AActor* ReachedWaypoint); // Called when a waypoint is reached
 
 protected:
-    AActor* CurrentWaypoint;
+	AActor* CurrentWaypoint; // Current waypoint the racer is moving towards
 
     UPROPERTY()
-    AWaypointManager* WaypointManager;
+	AWaypointManager* WaypointManager; // Reference to the WaypointManager
 
     UPROPERTY()
-    UCustomLinkedList* LinkedList;
+    UCustomLinkedList* LinkedList; // Reference to the linked list
 
-    void MoveToCurrentWaypoint();
+    void MoveToCurrentWaypoint(); // Move to the current waypoint
 };
