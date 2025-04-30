@@ -8,7 +8,7 @@ public class GADE_POE : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput","Json","JsonUtilities" , "Niagara", "AIModule", "NavigationSystem" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput","Json","JsonUtilities" , "Niagara", "AIModule", "NavigationSystem", "Navmesh" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

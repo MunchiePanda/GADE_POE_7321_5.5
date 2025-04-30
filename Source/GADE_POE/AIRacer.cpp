@@ -1,8 +1,9 @@
 #include "AIRacer.h"
-#include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "RacerTypes.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "AIRacerContoller.h"
 
 AAIRacer::AAIRacer() // Constructor
 {
@@ -21,8 +22,8 @@ AAIRacer::AAIRacer() // Constructor
         Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
     }
 
-    // Set up the mesh as a child of the capsule
-    RacerMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RacerMesh"));
+    // Set up the skeletal mesh as a child of the capsule
+    RacerMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RacerMesh"));
     RacerMesh->SetupAttachment(RootComponent);
     RacerMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
@@ -37,10 +38,14 @@ AAIRacer::AAIRacer() // Constructor
         Movement->bCanWalkOffLedges = false;
     }
 
+    // Set the AI controller class
+    AIControllerClass = AAIRacerContoller::StaticClass();
+    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
     // Default attributes
     RacerType = ERacerType::Medium;
     MaxSpeed = 600.0f;
-    MaxAcceleration = 500.0f; // Renamed
+    MaxAcceleration = 500.0f;
 }
 
 void AAIRacer::BeginPlay()
@@ -72,6 +77,6 @@ void AAIRacer::SetupRacerAttributes()
     if (Movement)
     {
         Movement->MaxWalkSpeed = MaxSpeed;
-        Movement->MaxAcceleration = MaxAcceleration; // Use MaxAcceleration instead
+        Movement->MaxAcceleration = MaxAcceleration;
     }
 }

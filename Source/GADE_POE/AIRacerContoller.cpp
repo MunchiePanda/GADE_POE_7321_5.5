@@ -6,79 +6,101 @@
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 
-// Sets default values
 void AAIRacerContoller::BeginPlay()
 {
     Super::BeginPlay();
 
-	// Initialize the AI controller
     WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
     if (!WaypointManager || !WaypointManager->WaypointList)
     {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerController: Missing WaypointManager or LinkedList."));
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: Missing WaypointManager or LinkedList."));
         return;
     }
 
-	// Set the AI controller to use the WaypointManager's linked list
     LinkedList = WaypointManager->WaypointList;
     CurrentWaypoint = LinkedList->GetFirst();
 
-	// Check if the first waypoint is valid
-    if (!CurrentWaypoint) 
+    if (!CurrentWaypoint)
     {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerController: No valid first waypoint."));
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: No valid first waypoint."));
         return;
     }
 
-    MoveToCurrentWaypoint(); // Move to the first waypoint
+    GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
 }
 
-// Called when the game starts or when spawned
+void AAIRacerContoller::DelayedMoveToCurrentWaypoint()
+{
+    MoveToCurrentWaypoint();
+}
+
 void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
 {
-    // Check if the reached waypoint is valid
     if (!ReachedWaypoint || ReachedWaypoint != CurrentWaypoint || !LinkedList)
         return;
 
-    UE_LOG(LogTemp, Log, TEXT("AIRacerController: Reached waypoint %s"), *ReachedWaypoint->GetName());
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller: Reached waypoint %s"), *ReachedWaypoint->GetName());
 
-	CurrentWaypoint = LinkedList->GetNext(ReachedWaypoint); // Get the next waypoint
-    MoveToCurrentWaypoint(); // Move to the next waypoint
+    CurrentWaypoint = LinkedList->GetNext(ReachedWaypoint);
+    MoveToCurrentWaypoint();
 }
 
-// Move to the current waypoint
 void AAIRacerContoller::MoveToCurrentWaypoint()
 {
-	// Check if the current waypoint is valid
     if (!CurrentWaypoint)
     {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerController: CurrentWaypoint is null."));
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: CurrentWaypoint is null."));
         return;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("AIRacerController: Moving to waypoint %s at location %s"),
-        *CurrentWaypoint->GetName(), *CurrentWaypoint->GetActorLocation().ToString());
-
-    // Check navigation system
     UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
     if (!NavSys)
     {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerController: Navigation system not found!"));
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: Navigation system not found!"));
         return;
     }
 
-    // Attempt to move
-    EPathFollowingRequestResult::Type Result = MoveToActor(CurrentWaypoint, 200.0f); // Increased to 200.0f to match TriggerSphere
+    FVector RacerLocation = GetPawn()->GetActorLocation();
+    FNavLocation NavLocation;
+    bool bIsOnNavMesh = NavSys->ProjectPointToNavigation(RacerLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
+    if (bIsOnNavMesh)
+    {
+        GetPawn()->SetActorLocation(NavLocation.Location);
+        RacerLocation = NavLocation.Location;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller: Racer at %s is not on NavMesh"), *RacerLocation.ToString());
+        return;
+    }
+
+    FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
+    bIsOnNavMesh = NavSys->ProjectPointToNavigation(WaypointLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
+    if (bIsOnNavMesh)
+    {
+        WaypointLocation = NavLocation.Location;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller: Waypoint at %s is not on NavMesh"), *WaypointLocation.ToString());
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller: Moving to waypoint %s at location %s"),
+        *CurrentWaypoint->GetName(), *WaypointLocation.ToString());
+
+    EPathFollowingRequestResult::Type Result = MoveToActor(CurrentWaypoint, 200.0f);
     switch (Result)
     {
-    case EPathFollowingRequestResult::Failed: // MoveToActor failed
-        UE_LOG(LogTemp, Error, TEXT("AIRacerController: MoveToActor failed for waypoint %s"), *CurrentWaypoint->GetName());
+    case EPathFollowingRequestResult::Failed:
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: MoveToActor failed for waypoint %s"), *CurrentWaypoint->GetName());
         break;
-	case EPathFollowingRequestResult::AlreadyAtGoal: // Already at the waypoint
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerController: Already at waypoint %s"), *CurrentWaypoint->GetName());
+    case EPathFollowingRequestResult::AlreadyAtGoal:
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller: Already at waypoint %s"), *CurrentWaypoint->GetName());
+        OnWaypointReached(CurrentWaypoint);
         break;
-	case EPathFollowingRequestResult::RequestSuccessful: // MoveToActor request was successful
-        UE_LOG(LogTemp, Log, TEXT("AIRacerController: MoveToActor successful for waypoint %s"), *CurrentWaypoint->GetName());
+    case EPathFollowingRequestResult::RequestSuccessful:
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller: MoveToActor successful for waypoint %s"), *CurrentWaypoint->GetName());
         break;
     }
 }

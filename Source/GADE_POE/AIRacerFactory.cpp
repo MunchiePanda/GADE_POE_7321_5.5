@@ -1,6 +1,9 @@
 #include "AIRacerFactory.h"
 #include "NavigationSystem.h"
 #include "EngineUtils.h" // For TActorIterator
+#include "Kismet/GameplayStatics.h"
+#include "AIRacer.h"
+#include "GameFramework/Actor.h"
 
 AAIRacerFactory::AAIRacerFactory()
 {
@@ -107,51 +110,124 @@ AAIRacer* AAIRacerFactory::CreateRacer(UWorld* World, ERacerType RacerType, cons
 
 void AAIRacerFactory::SpawnRacers(UWorld* World, int32 InMaxRacers, float InFastChance, float InMediumChance, float InSlowChance, const FRotator& InSpawnRotation)
 {
-    if (!World)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Invalid World"));
-        return;
-    }
+    if (!World) return;
 
-    float TotalChance = InFastChance + InMediumChance + InSlowChance;
-    if (TotalChance <= 0.0f)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Invalid chances (sum must be greater than 0)"));
-        return;
-    }
-
-    float FastProb = InFastChance / TotalChance;
-    float MediumProb = InMediumChance / TotalChance;
-    float SlowProb = InSlowChance / TotalChance;
-
+    // Clear any existing spawned racers
     SpawnedRacers.Empty();
 
+    // Find all spawn points in the level
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(World, ARacerSpawnPoint::StaticClass(), FoundActors);
+
+    SpawnPoints.Empty();
+    for (AActor* Actor : FoundActors)
+    {
+        ARacerSpawnPoint* SpawnPoint = Cast<ARacerSpawnPoint>(Actor);
+        if (SpawnPoint)
+        {
+            SpawnPoints.Add(SpawnPoint);
+            UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Found spawn point at %s"), *SpawnPoint->GetActorLocation().ToString());
+        }
+    }
+
+    // Ensure we have spawn points
+    if (SpawnPoints.Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: No spawn points found"));
+        return;
+    }
+
+    // Normalize probabilities
+    float TotalProb = InFastChance + InMediumChance + InSlowChance;
+    if (TotalProb <= 0.0f)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Invalid probabilities, using default"));
+        InFastChance = 0.33f;
+        InMediumChance = 0.33f;
+        InSlowChance = 0.34f;
+        TotalProb = 1.0f;
+    }
+
+    float FastProb = InFastChance / TotalProb;
+    float MediumProb = InMediumChance / TotalProb;
+
+    // Spawn racers
     int32 RacersToSpawn = FMath::Min(InMaxRacers, SpawnPoints.Num());
     for (int32 i = 0; i < RacersToSpawn; i++)
     {
         FVector SpawnLocation = SpawnPoints[i]->GetActorLocation();
-        SpawnLocation.Z += 190.0f; // Increased offset to ensure clearance
+        SpawnLocation.Z += 300.0f; // Increased Z-offset to avoid collision
 
+        // Check if the spawn location is on the NavMesh
+        FNavLocation NavLocation;
+        UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(World);
+        bool bIsOnNavMesh = NavSystem && NavSystem->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(1000.0f, 1000.0f, 1000.0f));
+        if (!bIsOnNavMesh)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is not on NavMesh, using original location"), *SpawnLocation.ToString());
+        }
+        else
+        {
+            SpawnLocation = NavLocation.Location;
+        }
+
+        // Determine racer type based on probabilities
         float RandomValue = FMath::FRand();
         ERacerType RacerType;
+        TSubclassOf<AAIRacer> RacerClass;
 
         if (RandomValue < FastProb)
         {
             RacerType = ERacerType::Fast;
+            RacerClass = FastRacerClass;
         }
         else if (RandomValue < FastProb + MediumProb)
         {
             RacerType = ERacerType::Medium;
+            RacerClass = MediumRacerClass;
         }
         else
         {
             RacerType = ERacerType::Slow;
+            RacerClass = SlowRacerClass;
         }
 
-        CreateRacer(World, RacerType, SpawnLocation, InSpawnRotation);
+        // Perform a sweep test to check for collisions
+        FHitResult Hit;
+        bool bCanSpawn = !World->SweepSingleByChannel(
+            Hit,
+            SpawnLocation,
+            SpawnLocation + FVector(0.0f, 0.0f, 1.0f),
+            FQuat::Identity,
+            ECC_Pawn,
+            FCollisionShape::MakeCapsule(40.0f, 96.0f) // Match AAIRacer's capsule size
+        );
+
+        if (!bCanSpawn)
+        {
+            //UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is blocked by %s"), *SpawnLocation.ToString(), *Hit.Actor->GetName());
+            continue; // Skip this spawn point
+        }
+
+        // Spawn the racer
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+        AAIRacer* NewRacer = World->SpawnActor<AAIRacer>(RacerClass, SpawnLocation, InSpawnRotation, SpawnParams);
+
+        if (NewRacer)
+        {
+            NewRacer->RacerType = RacerType;
+            NewRacer->SetupRacerAttributes();
+            SpawnedRacers.Add(NewRacer);
+            UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Spawned %s at %s"), *UEnum::GetValueAsString(RacerType), *NewRacer->GetActorLocation().ToString());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Failed to spawn %s at %s"), *UEnum::GetValueAsString(RacerType), *SpawnLocation.ToString());
+        }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Spawned %d racers"), RacersToSpawn);
+    UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Successfully spawned %d racers"), SpawnedRacers.Num());
 }
 
 void AAIRacerFactory::SpawnRacersWithDefaults(UWorld* World)

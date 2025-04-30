@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,27 +6,28 @@
 #include "CustomLinkedList.h"
 #include "AIRacerContoller.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class GADE_POE_API AAIRacerContoller : public AAIController
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
+
 public:
     virtual void BeginPlay() override;
 
     UFUNCTION()
-    void OnWaypointReached(AActor* ReachedWaypoint); // Called when a waypoint is reached
+    void OnWaypointReached(AActor* ReachedWaypoint);
 
 protected:
-	AActor* CurrentWaypoint; // Current waypoint the racer is moving towards
+    AActor* CurrentWaypoint;
 
     UPROPERTY()
-	AWaypointManager* WaypointManager; // Reference to the WaypointManager
+    AWaypointManager* WaypointManager;
 
     UPROPERTY()
-    UCustomLinkedList* LinkedList; // Reference to the linked list
+    UCustomLinkedList* LinkedList;
 
-    void MoveToCurrentWaypoint(); // Move to the current waypoint
+    FTimerHandle InitialMoveTimerHandle;
+
+    void MoveToCurrentWaypoint();
+    void DelayedMoveToCurrentWaypoint();
 };
