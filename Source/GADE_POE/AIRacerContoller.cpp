@@ -26,6 +26,13 @@ void AAIRacerContoller::BeginPlay()
         return;
     }
 
+    // Ensure the pawn is possessed before starting the timer
+    if (!GetPawn())
+    {
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: No pawn possessed at BeginPlay."));
+        return;
+    }
+
     GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
 }
 
@@ -53,6 +60,13 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
+    APawn* ControlledPawn = GetPawn();
+    if (!ControlledPawn)
+    {
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: ControlledPawn is null."));
+        return;
+    }
+
     UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
     if (!NavSys)
     {
@@ -60,12 +74,12 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
-    FVector RacerLocation = GetPawn()->GetActorLocation();
+    FVector RacerLocation = ControlledPawn->GetActorLocation();
     FNavLocation NavLocation;
     bool bIsOnNavMesh = NavSys->ProjectPointToNavigation(RacerLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
     if (bIsOnNavMesh)
     {
-        GetPawn()->SetActorLocation(NavLocation.Location);
+        ControlledPawn->SetActorLocation(NavLocation.Location);
         RacerLocation = NavLocation.Location;
     }
     else
