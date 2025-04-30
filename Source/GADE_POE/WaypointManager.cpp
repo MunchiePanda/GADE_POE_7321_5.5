@@ -12,33 +12,34 @@ void AWaypointManager::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Find all actors with the "Waypoint" tag
+    // Find all waypoints in the level
     TArray<AActor*> FoundWaypoints;
-    UGameplayStatics::GetAllActorsWithTag(GetWorld(), FName("Waypoint"), FoundWaypoints);
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), FoundWaypoints);
 
-    // Sort waypoints by name to ensure consistent order (e.g., Waypoint_01, Waypoint_02, ...)
-    Algo::Sort(FoundWaypoints, [](const AActor* A, const AActor* B) {
-        return A->GetName() < B->GetName();
-        });
-
-    // Add sorted waypoints to the Waypoints array and linked list
-    for (AActor* Waypoint : FoundWaypoints)
+    TArray<AActor*> SortedWaypoints;
+    for (AActor* Actor : FoundWaypoints)
     {
-        if (Waypoint)
+        // Check if the actor's name contains "BP_Waypoint_C_"
+        if (Actor && Actor->GetName().Contains(TEXT("BP_Waypoint_C_")))
         {
-            Waypoints.Add(Waypoint);
-            WaypointList->Add(Waypoint);
+            SortedWaypoints.Add(Actor);
         }
     }
 
-    if (Waypoints.Num() == 0) // No waypoints found
+    // Sort waypoints by name (e.g., BP_Waypoint_C_0, BP_Waypoint_C_1, etc.)
+    SortedWaypoints.Sort([](const AActor& A, const AActor& B) {
+        return A.GetName() < B.GetName();
+        });
+
+    // Add sorted waypoints to the linked list
+    WaypointList->Clear();
+    for (AActor* Waypoint : SortedWaypoints)
     {
-        UE_LOG(LogTemp, Warning, TEXT("WaypointManager: No waypoints found in level!"));
+        WaypointList->Add(Waypoint);
+        UE_LOG(LogTemp, Log, TEXT("WaypointManager: Added waypoint %s to list"), *Waypoint->GetName());
     }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("WaypointManager: Found %d waypoints."), Waypoints.Num());
-    }
+
+    UE_LOG(LogTemp, Log, TEXT("WaypointManager: Found and sorted %d waypoints."), SortedWaypoints.Num());
 }
 
 
