@@ -29,8 +29,25 @@ void AWaypointManager::BeginPlay()
         return;
     }
 
+    // Sort waypoints by the numeric part of their name
     Waypoints.Sort([](const AActor& A, const AActor& B) {
-        return A.GetActorLocation().X < B.GetActorLocation().X;
+        FString NameA = A.GetName();
+        FString NameB = B.GetName();
+
+        // Extract the number after "BP_Waypoint_C_"
+        int32 NumberA = 0, NumberB = 0;
+        if (NameA.StartsWith(TEXT("BP_Waypoint_C_")))
+        {
+            FString NumberStr = NameA.Mid(14); // "BP_Waypoint_C_" is 14 characters
+            NumberA = FCString::Atoi(*NumberStr);
+        }
+        if (NameB.StartsWith(TEXT("BP_Waypoint_C_")))
+        {
+            FString NumberStr = NameB.Mid(14);
+            NumberB = FCString::Atoi(*NumberStr);
+        }
+
+        return NumberA < NumberB;
         });
 
     WaypointList->Clear();
@@ -51,7 +68,7 @@ AActor* AWaypointManager::GetWaypoint(int Index)
         return nullptr;
     }
 
-    AActor* Waypoint = WaypointList->GetAt(Index); // Assumes GetAtIndex exists
+    AActor* Waypoint = WaypointList->GetAt(Index);
     if (!Waypoint)
     {
         UE_LOG(LogTemp, Warning, TEXT("WaypointManager: No waypoint found at index %d."), Index);

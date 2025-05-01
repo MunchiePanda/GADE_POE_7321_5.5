@@ -6,6 +6,11 @@
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 
+AAIRacerContoller::AAIRacerContoller()
+{
+    PrimaryActorTick.bCanEverTick = true;
+}
+
 void AAIRacerContoller::BeginPlay()
 {
     Super::BeginPlay();
@@ -26,14 +31,20 @@ void AAIRacerContoller::BeginPlay()
         return;
     }
 
-    // Ensure the pawn is possessed before starting the timer
-    if (!GetPawn())
-    {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: No pawn possessed at BeginPlay."));
-        return;
-    }
+    // Defer initialization until pawn is possessed
+}
 
-    GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
+void AAIRacerContoller::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    // Check for pawn possession on the first tick
+    if (!bInitialized && GetPawn())
+    {
+        bInitialized = true;
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller: Pawn possessed, initializing navigation."));
+        GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
+    }
 }
 
 void AAIRacerContoller::DelayedMoveToCurrentWaypoint()

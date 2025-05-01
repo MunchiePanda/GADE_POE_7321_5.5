@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
-#include "WaypointManager.h"
-#include "CustomLinkedList.h"
 #include "AIRacerContoller.generated.h"
+
+class AWaypointManager;
+class UCustomLinkedList;
+class AActor;
 
 UCLASS()
 class GADE_POE_API AAIRacerContoller : public AAIController
@@ -12,22 +14,26 @@ class GADE_POE_API AAIRacerContoller : public AAIController
     GENERATED_BODY()
 
 public:
+    AAIRacerContoller();
+
     virtual void BeginPlay() override;
-
-    UFUNCTION()
+    virtual void Tick(float DeltaTime) override;
     void OnWaypointReached(AActor* ReachedWaypoint);
-
 protected:
-    AActor* CurrentWaypoint;
-
     UPROPERTY()
     AWaypointManager* WaypointManager;
 
     UPROPERTY()
     UCustomLinkedList* LinkedList;
 
+    UPROPERTY()
+    AActor* CurrentWaypoint;
+
     FTimerHandle InitialMoveTimerHandle;
 
-    void MoveToCurrentWaypoint();
+    bool bInitialized;
+
     void DelayedMoveToCurrentWaypoint();
+    
+    void MoveToCurrentWaypoint();
 };
