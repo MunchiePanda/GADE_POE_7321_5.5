@@ -7,6 +7,7 @@
 class AWaypointManager;
 class UCustomLinkedList;
 class AActor;
+class ABeginnerRaceGameState;
 
 UCLASS()
 class GADE_POE_API AAIRacerContoller : public AAIController
@@ -19,6 +20,7 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
     void OnWaypointReached(AActor* ReachedWaypoint);
+
 protected:
     UPROPERTY()
     AWaypointManager* WaypointManager;
@@ -29,11 +31,14 @@ protected:
     UPROPERTY()
     AActor* CurrentWaypoint;
 
+    UPROPERTY()
+    ABeginnerRaceGameState* GameState;
+
     FTimerHandle InitialMoveTimerHandle;
 
     bool bInitialized;
 
     void DelayedMoveToCurrentWaypoint();
-    
+
     void MoveToCurrentWaypoint();
 };

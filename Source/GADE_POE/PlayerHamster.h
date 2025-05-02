@@ -4,89 +4,106 @@
 #include "GameFramework/Character.h"
 #include "Blueprint/UserWidget.h"
 #include "PauseMenu_WB.h"
+#include "BiginnerRaceGameState.h"
 #include "PlayerHamster.generated.h"
 
 class UStaticMeshComponent;
 class USpringArmComponent;
 class UCameraComponent;
-
 class USplineComponent;
+class AWaypointManager;
+class ABiginnerRaceGameState;
+class UBeginnerRaceHUD;
+
 UCLASS()
 class GADE_POE_API APlayerHamster : public ACharacter
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	APlayerHamster();
+    APlayerHamster();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
 public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+    virtual void Tick(float DeltaTime) override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    void MoveForward(float Value);
+    void MoveRight(float Value);
+    void Brake(float Value);
 
-	void MoveForward(float Value); // Movement Controls
-	void MoveRight(float Value);
-	void Brake(float Value);
+    void Turn(float Value);
+    void LookUp(float Value);
 
-	void Turn(float Value); // Camera Controls
-	void LookUp(float Value);
+    void TogglePauseMenu();
 
-	// Pause Functionality
-	void TogglePauseMenu();
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    float GetSpeed() const;
 
-	float CurrentSpeed = 0.0f; // Current speed of the hamster
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spline")
+    USplineComponent* Spline;
 
-	UFUNCTION(BlueprintCallable, Category = "Movement") // get speed (Exposed property for speed)
-	float GetSpeed() const; 
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> PauseMenuClass;
 
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UBeginnerRaceHUD> HUDClass;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spline")
-	USplineComponent* Spline; // Reference to the spline
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 CurrentLap;
 
-	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	TSubclassOf<UUserWidget> PauseMenuClass; // Reference to the pause menu widget
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 CurrentWaypointIndex;
+
 private:
-	
+    UPROPERTY(VisibleAnywhere, Category = "Components")
+    UStaticMeshComponent* HamsterMesh;
 
-	UPROPERTY(EditAnywhere, Category = "Movement")
-	float TurnSpeed = 100.0f; // How quickly the hamster turns
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float TurnSpeed = 100.0f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Components")
-	UStaticMeshComponent* HamsterMesh; // The mesh for the hamster
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float AccelerationRate = 500.0f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Movement")
-	float AccelerationRate = 500.0f; // How quickly the hamster accelerates
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float DecelerationRate = 300.0f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Movement")
-	float DecelerationRate = 300.0f; // How quickly the hamster decelerates
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float MaxSpeed = 4000.0f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Movement")
-	float MaxSpeed = 4000.0f; // Maximum speed
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float BrakeForce = 800.0f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Movement")
-	float BrakeForce = 800.0f; // How quickly the hamster stops
+    UPROPERTY(VisibleAnywhere)
+    USpringArmComponent* SpringArm;
 
-	// Camera Components
-	UPROPERTY(VisibleAnywhere)
-	USpringArmComponent* SpringArm;
+    UPROPERTY(VisibleAnywhere)
+    UCameraComponent* Camera;
 
-	UPROPERTY(VisibleAnywhere)
-	UCameraComponent* Camera;
+    UPROPERTY(VisibleAnywhere, Category = "Spline")
+    float MaxDistanceFromSpline = 200.f;
 
-	//reference to spline
-	UPROPERTY(VisibleAnywhere, Category = "Spline")
-	float MaxDistanceFromSpline = 200.f;
-	UPROPERTY(VisibleAnywhere, Category = "Spline")
-	TSubclassOf<UUserWidget> PauseMenuWidgetClass;
-	UPROPERTY()
-	UPauseMenu_WB* PauseMenuWidget;
+    UPROPERTY(VisibleAnywhere, Category = "Spline")
+    TSubclassOf<UUserWidget> PauseMenuWidgetClass;
 
-	bool bIsPaused = false;
+    UPROPERTY()
+    UPauseMenu_WB* PauseMenuWidget;
+
+    UPROPERTY()
+    UUserWidget* HUDWidget;
+
+    bool bIsPaused = false;
+
+    float CurrentSpeed = 0.0f;
+
+    UPROPERTY()
+    AWaypointManager* WaypointManager;
+
+    UPROPERTY()
+    ABeginnerRaceGameState* GameState;
+
+    void RegisterWithGameState();
+    void OnWaypointReached(AActor* Waypoint);
 };

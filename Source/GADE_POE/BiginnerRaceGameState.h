@@ -31,7 +31,7 @@ struct FRacerLeaderboardEntry
 UCLASS()
 class GADE_POE_API ABeginnerRaceGameState : public AGameStateBase
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 public:
     ABeginnerRaceGameState();
 
@@ -58,7 +58,6 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
     bool bRaceFinished;
-
 private:
     void UpdateLeaderboard();
 };

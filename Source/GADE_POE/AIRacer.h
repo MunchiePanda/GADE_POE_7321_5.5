@@ -7,6 +7,7 @@
 #include "AIRacer.generated.h"
 
 class AAIRacerContoller; // Forward declaration
+class ABeginnerRaceGameState;
 
 UCLASS()
 class GADE_POE_API AAIRacer : public ACharacter
@@ -15,7 +16,7 @@ class GADE_POE_API AAIRacer : public ACharacter
 
 public:
     AAIRacer();
-
+    // Sets default values for this character's properties
     UPROPERTY(VisibleAnywhere, Category = "Mesh")
     USkeletalMeshComponent* RacerMesh;
 
@@ -38,4 +39,8 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+
+private:
+    UPROPERTY()
+    ABeginnerRaceGameState* GameState; // Reference to the game state
 };

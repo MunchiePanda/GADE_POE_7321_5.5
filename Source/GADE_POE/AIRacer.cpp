@@ -4,6 +4,8 @@
 #include "RacerTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "AIRacerContoller.h"
+#include "Kismet/GameplayStatics.h"
+#include "BiginnerRaceGameState.h"
 
 AAIRacer::AAIRacer() // Constructor
 {
@@ -52,23 +54,35 @@ void AAIRacer::BeginPlay()
 {
     Super::BeginPlay();
     SetupRacerAttributes();
+
+    // Register with GameState
+    GameState = Cast<ABeginnerRaceGameState>(GetWorld()->GetGameState());
+    if (GameState)
+    {
+        GameState->RegisterRacer(this);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("AIRacer: Failed to find BeginnerRaceGameState."));
+    }
 }
 
 void AAIRacer::SetupRacerAttributes()
 {
+    // Calculate attributes based on RacerType
     switch (RacerType)
     {
     case ERacerType::Fast:
-        MaxSpeed = 1200.0f;
+        MaxSpeed = 4000.0f;
         MaxAcceleration = 900.0f;
         break;
     case ERacerType::Medium:
-        MaxSpeed = 600.0f;
+        MaxSpeed = 4000.0f;
         MaxAcceleration = 500.0f;
         break;
     case ERacerType::Slow:
-        MaxSpeed = 300.0f;
-        MaxAcceleration = 200.0f;
+        MaxSpeed = 4000.0f;
+        MaxAcceleration = 50.0f;
         break;
     }
 
