@@ -100,7 +100,7 @@ void APlayerHamster::Tick(float DeltaTime)
         return;
     }
 
-    if (Spline)
+    if (Spline) // Check if Spline is valid (obsoute)
     {
         FVector CurrentLocation = GetActorLocation();
         FVector ClosestSplineLocation = Spline->FindLocationClosestToWorldLocation(CurrentLocation, ESplineCoordinateSpace::World);
@@ -130,16 +130,7 @@ void APlayerHamster::Tick(float DeltaTime)
         }
     }
 
-    /*
-    if (HUDWidget && GameState)
-    {
-        UTextBlock* LapCounter = Cast<UTextBlock>(HUDWidget->GetWidgetFromName("LapCounter"));
-        if (LapCounter)
-        {
-            LapCounter->SetText(FText::FromString(FString::Printf(TEXT("Lap %d/%d"), CurrentLap, GameState->TotalLaps)));
-        }
-    }
-	*/
+    
 }
 
 void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

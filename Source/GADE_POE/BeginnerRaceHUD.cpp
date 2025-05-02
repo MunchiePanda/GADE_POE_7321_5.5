@@ -28,6 +28,7 @@ void UBeginnerRaceHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
     Super::NativeTick(MyGeometry, InDeltaTime);
 
     UpdateLapCounter();
+	UpdatePositionDisplay();
 }
 
 void UBeginnerRaceHUD::UpdateLapCounter()
@@ -53,4 +54,14 @@ void UBeginnerRaceHUD::UpdatePositionDisplay()
         }
         PositionDisplay->SetText(FText::FromString(FString::Printf(TEXT("Position: %d"), PlayerPosition)));
     }
+}
+
+FText UBeginnerRaceHUD::GetSpeedText() const
+{
+    if (PlayerHamster)
+    {
+        return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), PlayerHamster->GetSpeed()));
+
+    }
+    return FText::FromString(TEXT("Speed: 0 km/h"));
 }

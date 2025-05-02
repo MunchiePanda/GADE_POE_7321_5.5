@@ -19,6 +19,7 @@ public:
     virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+    void UpdateLapCounter();
 protected:
     UPROPERTY(meta = (BindWidget))
     class UTextBlock* LapCounter;
@@ -26,12 +27,15 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* PositionDisplay;
 
+    UFUNCTION(BlueprintCallable, Category = "HUD")
+    FText GetSpeedText() const;
+
     UPROPERTY()
     APlayerHamster* PlayerHamster;
 
     UPROPERTY()
     ABeginnerRaceGameState* GameState;
 
-    void UpdateLapCounter();
+   
     void UpdatePositionDisplay();
 };
