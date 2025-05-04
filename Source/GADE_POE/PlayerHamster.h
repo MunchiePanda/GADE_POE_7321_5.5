@@ -52,14 +52,15 @@ public:
     TSubclassOf<UBeginnerRaceHUD> HUDClass;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 CurrentLap;
+	int32 CurrentLap; // Current lap number 
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 CurrentWaypointIndex;
+	int32 CurrentWaypointIndex; // Current waypoint index 
 
 private:
+    // Components 
     UPROPERTY(VisibleAnywhere, Category = "Components")
-    UStaticMeshComponent* HamsterMesh;
+	UStaticMeshComponent* HamsterMesh; // Hamster mesh component
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
     float TurnSpeed = 100.0f;
@@ -89,7 +90,7 @@ private:
     TSubclassOf<UUserWidget> PauseMenuWidgetClass;
 
     UPROPERTY()
-    UPauseMenu_WB* PauseMenuWidget;
+    UUserWidget* PauseMenuWidget;
 
     UPROPERTY()
     UUserWidget* HUDWidget;

@@ -1,14 +1,10 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "BiginnerRaceGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "WaypointManager.h"
 
-
 ABeginnerRaceGameState::ABeginnerRaceGameState()
 {
-    TotalLaps = 3; // Set to desired number of laps
+    TotalLaps = 2; // Set to desired number of laps
     TotalWaypoints = 0;
     bRaceFinished = false;
 }
@@ -22,6 +18,11 @@ void ABeginnerRaceGameState::BeginPlay()
     if (WaypointManager && WaypointManager->Waypoints.Num() > 0)
     {
         TotalWaypoints = WaypointManager->Waypoints.Num();
+        UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: TotalWaypoints set to %d"), TotalWaypoints);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("BeginnerRaceGameState: WaypointManager not found or no waypoints!"));
     }
 }
 
@@ -71,6 +72,7 @@ void ABeginnerRaceGameState::UpdateRacerProgress(AActor* Racer, int32 Lap, int32
         {
             Entry.Lap = Lap;
             Entry.WaypointIndex = WaypointIndex;
+            UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Updated progress for %s: Lap %d, WaypointIndex %d"), *Racer->GetName(), Lap, WaypointIndex);
             break;
         }
     }
@@ -84,7 +86,6 @@ TArray<FRacerLeaderboardEntry> ABeginnerRaceGameState::GetLeaderboard() const
 
 void ABeginnerRaceGameState::UpdateLeaderboard()
 {
-    // Sort by lap (descending), then waypoint index (descending)
     Leaderboard.Sort([](const FRacerLeaderboardEntry& A, const FRacerLeaderboardEntry& B) {
         if (A.Lap != B.Lap)
         {
@@ -93,9 +94,9 @@ void ABeginnerRaceGameState::UpdateLeaderboard()
         return A.WaypointIndex > B.WaypointIndex;
         });
 
-    // Assign placements
     for (int32 i = 0; i < Leaderboard.Num(); i++)
     {
         Leaderboard[i].Placement = i + 1;
+        UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Updated placement for %s to %d"), *Leaderboard[i].RacerName, Leaderboard[i].Placement);
     }
 }

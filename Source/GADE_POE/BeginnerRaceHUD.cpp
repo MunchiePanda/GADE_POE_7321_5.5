@@ -36,15 +36,20 @@ void UBeginnerRaceHUD::UpdateLapCounter()
     if (PlayerHamster && GameState && LapCounter)
     {
         LapCounter->SetText(FText::FromString(FString::Printf(TEXT("Lap %d/%d"), PlayerHamster->CurrentLap, GameState->TotalLaps)));
+        UE_LOG(LogTemp, Warning, TEXT("Lap %d/%d"), PlayerHamster->CurrentLap, GameState->TotalLaps);
     }
 }
-void UBeginnerRaceHUD::UpdatePositionDisplay()
+
+// Function to update the position display 
+void UBeginnerRaceHUD::UpdatePositionDisplay() // Update the position display
 {
     if (PlayerHamster && GameState && PositionDisplay)
     {
+		// Get the leaderboard from the game state and find the player's position 
         TArray<FRacerLeaderboardEntry> Leaderboard = GameState->GetLeaderboard();
         int32 PlayerPosition = 0;
-        for (const FRacerLeaderboardEntry& Entry : Leaderboard)
+
+        for (const FRacerLeaderboardEntry& Entry : Leaderboard) // Loop through the leaderboard
         {
             if (Entry.Racer == PlayerHamster)
             {
@@ -53,10 +58,11 @@ void UBeginnerRaceHUD::UpdatePositionDisplay()
             }
         }
         PositionDisplay->SetText(FText::FromString(FString::Printf(TEXT("Position: %d"), PlayerPosition)));
+		UE_LOG(LogTemp, Warning, TEXT("Position: %d"), PlayerPosition);
     }
 }
 
-FText UBeginnerRaceHUD::GetSpeedText() const
+FText UBeginnerRaceHUD::GetSpeedText() const // Function to get the speed text
 {
     if (PlayerHamster)
     {

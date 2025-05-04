@@ -22,21 +22,21 @@ public:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HUD")
-	TSubclassOf<UUserWidget> RaceHUDWidgetClass;
+	TSubclassOf<UUserWidget> RaceHUDWidgetClass; // Class for the race HUD
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HUD")
-	TSubclassOf<UUserWidget> TutorialWidgetClass;
+	TSubclassOf<UUserWidget> TutorialWidgetClass; // Class for the tutorial
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HUD")
-	TSubclassOf<UUserWidget> RaceEndWidgetClass;
+	TSubclassOf<UUserWidget> RaceEndWidgetClass; // Class for the race end
 
 private:
-	UPROPERTY()
+	UPROPERTY() // Property for the race HUD
 	UUserWidget* RaceHUDWidget;
 
-	ACheckpointManager* CheckpointManager;
+	ACheckpointManager* CheckpointManager; // Reference to the checkpoint manager
 
-	URaceEndWidget* RaceEndWidget;
-	void ShowTutorial();
+	URaceEndWidget* RaceEndWidget; // Reference to the race end widget
+	void ShowTutorial(); // Function to show the tutorial
 
 };

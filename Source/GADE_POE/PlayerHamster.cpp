@@ -10,6 +10,8 @@
 #include "WaypointManager.h"
 #include "BiginnerRaceGameState.h"
 #include "BeginnerRaceHUD.h"
+#include "DrawDebugHelpers.h"
+#include "Components/SphereComponent.h"
 
 APlayerHamster::APlayerHamster()
 {
@@ -50,7 +52,7 @@ void APlayerHamster::BeginPlay()
 
     if (PauseMenuWidgetClass)
     {
-        PauseMenuWidget = CreateWidget<UPauseMenu_WB>(GetWorld(), PauseMenuWidgetClass);
+        PauseMenuWidget = CreateWidget<UUserWidget>(GetWorld(), PauseMenuWidgetClass);
         if (PauseMenuWidget)
         {
             PauseMenuWidget->AddToViewport();
@@ -87,6 +89,35 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: GameState not found!"));
     }
 
+    // Teleport to first waypoint to ensure proximity
+    if (WaypointManager)
+    {
+        AActor* FirstWaypoint = WaypointManager->GetWaypoint(0);
+        if (FirstWaypoint)
+        {
+            FVector StartLocation = FirstWaypoint->GetActorLocation() + FVector(0.f, 0.f, 100.f);
+            bool bTeleportSuccess = SetActorLocation(StartLocation, false, nullptr, ETeleportType::TeleportPhysics);
+            if (bTeleportSuccess)
+            {
+                UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Teleported to first waypoint at %s"), *StartLocation.ToString());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Failed to teleport to first waypoint at %s"), *StartLocation.ToString());
+            }
+            // Log current player location for debugging
+            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Current location after teleport attempt: %s"), *GetActorLocation().ToString());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("PlayerHamster: First waypoint is null"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PlayerHamster: WaypointManager is null, cannot teleport"));
+    }
+
     RegisterWithGameState();
 }
 
@@ -100,37 +131,53 @@ void APlayerHamster::Tick(float DeltaTime)
         return;
     }
 
-    if (Spline) // Check if Spline is valid (obsoute)
-    {
-        FVector CurrentLocation = GetActorLocation();
-        FVector ClosestSplineLocation = Spline->FindLocationClosestToWorldLocation(CurrentLocation, ESplineCoordinateSpace::World);
-        float DistanceToSpline = FVector::Distance(CurrentLocation, ClosestSplineLocation);
-
-        if (DistanceToSpline > MaxDistanceFromSpline)
-        {
-            SetActorLocation(ClosestSplineLocation);
-        }
-
-        float SplineLength = Spline->GetSplineLength();
-        float NewDistanceAlongSpline = FMath::Clamp(CurrentLocation.X, 0.0f, SplineLength);
-        FVector NewLocation = Spline->GetLocationAtDistanceAlongSpline(NewDistanceAlongSpline, ESplineCoordinateSpace::World);
-        SetActorLocation(NewLocation);
-    }
-
     if (WaypointManager)
     {
         AActor* CurrentWaypoint = WaypointManager->GetWaypoint(CurrentWaypointIndex);
         if (CurrentWaypoint)
         {
-            float Distance = FVector::Dist(GetActorLocation(), CurrentWaypoint->GetActorLocation());
-            if (Distance < 200.0f)
+            FVector PlayerLocation = GetActorLocation();
+            FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
+            float Distance = FVector::Dist(PlayerLocation, WaypointLocation);
+            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Distance to waypoint %s: %f"), *CurrentWaypoint->GetName(), Distance);
+
+            // Check for sphere component overlap
+            USphereComponent* WaypointCollision = Cast<USphereComponent>(CurrentWaypoint->GetComponentByClass(USphereComponent::StaticClass()));
+            if (WaypointCollision)
             {
-                OnWaypointReached(CurrentWaypoint);
+                TArray<AActor*> OverlappingActors;
+                WaypointCollision->GetOverlappingActors(OverlappingActors, APlayerHamster::StaticClass());
+                if (OverlappingActors.Contains(this))
+                {
+                    OnWaypointReached(CurrentWaypoint);
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Waypoint %s lacks USphereComponent, using distance check"), *CurrentWaypoint->GetName());
+                // Fallback distance-based check
+                if (Distance < 5000.0f)
+                {
+                    OnWaypointReached(CurrentWaypoint);
+                }
+            }
+
+            // Debug visualization
+            if (WaypointCollision)
+            {
+                float SphereRadius = WaypointCollision->GetScaledSphereRadius();
+                DrawDebugSphere(GetWorld(), WaypointLocation, SphereRadius, 12, FColor::Green, false, 0.1f);
+            }
+            else
+            {
+                DrawDebugSphere(GetWorld(), WaypointLocation, 5000.0f, 12, FColor::Red, false, 0.1f);
             }
         }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: CurrentWaypoint at index %d is null"), CurrentWaypointIndex);
+        }
     }
-
-    
 }
 
 void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -230,6 +277,7 @@ void APlayerHamster::RegisterWithGameState()
 void APlayerHamster::OnWaypointReached(AActor* Waypoint)
 {
     CurrentWaypointIndex++;
+    UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Reached waypoint index %d"), CurrentWaypointIndex);
 
     if (GameState && CurrentWaypointIndex >= GameState->TotalWaypoints)
     {
