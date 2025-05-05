@@ -13,12 +13,12 @@ void UMainMenuWidget::OnMapOneClicked()
 
 void UMainMenuWidget::OnMapTwoClicked()
 {
-	LoadLevelAsync(FName("BeginnerMap")); // Load the beginner map
+	LoadLevelAsync(FName("BeginnerDialogueLVL")); // Open the dialogue level for the beginner race and then load the race level
 }
 
 void UMainMenuWidget::OnMapThreeClicked()
 {
-	LoadLevelAsync(FName("AdvancedMap")); // Load the advanced map
+	LoadLevelAsync(FName("AdvancedDialogueLVL")); // Load the advanced map
 }
 
 void UMainMenuWidget::ShowLoadingScreen()

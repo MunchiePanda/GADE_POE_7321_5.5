@@ -15,8 +15,10 @@
 
 APlayerHamster::APlayerHamster()
 {
+	// Set this character to call Tick() every frame
     PrimaryActorTick.bCanEverTick = true;
 
+    /*Set all the default values*/
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
     HamsterMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HamsterMesh"));
@@ -49,25 +51,21 @@ void APlayerHamster::BeginPlay()
     {
         Spline = FindComponentByClass<USplineComponent>();
     }
-
+    // Create PauseMenuWidget but don't add to viewport yet
     if (PauseMenuWidgetClass)
     {
         PauseMenuWidget = CreateWidget<UUserWidget>(GetWorld(), PauseMenuWidgetClass);
-        if (PauseMenuWidget)
+        if (!PauseMenuWidget)
         {
-            PauseMenuWidget->AddToViewport();
-            PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("Failed to create PauseMenuWidget!"));
+            UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Failed to create PauseMenuWidget!"));
         }
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("PauseMenuClass is not set in the editor!"));
+        UE_LOG(LogTemp, Error, TEXT("PlayerHamster: PauseMenuWidgetClass is not set in the editor!"));
     }
 
+    // Create HUD but don't add to viewport yet 
     if (HUDClass)
     {
         HUDWidget = CreateWidget<UBeginnerRaceHUD>(GetWorld()->GetFirstPlayerController(), HUDClass);
@@ -77,6 +75,7 @@ void APlayerHamster::BeginPlay()
         }
     }
 
+    // Get total waypoints from WaypointManager and LinkedList
     WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
     if (!WaypointManager)
     {
@@ -125,12 +124,14 @@ void APlayerHamster::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
+	// Check if the player has finished the race and disable movement
     if (GameState && CurrentLap >= GameState->TotalLaps)
     {
         GetCharacterMovement()->DisableMovement();
         return;
     }
 
+    // Check distance to current waypoint and trigger OnWaypointReached if close enough 
     if (WaypointManager)
     {
         AActor* CurrentWaypoint = WaypointManager->GetWaypoint(CurrentWaypointIndex);
@@ -184,14 +185,18 @@ void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    // Input bindings for movement
     PlayerInputComponent->BindAxis("MoveForward", this, &APlayerHamster::MoveForward);
     PlayerInputComponent->BindAxis("MoveRight", this, &APlayerHamster::MoveRight);
     PlayerInputComponent->BindAxis("Brake", this, &APlayerHamster::Brake);
+	// Input bindings for camera control
     PlayerInputComponent->BindAxis("Turn", this, &APlayerHamster::Turn);
     PlayerInputComponent->BindAxis("LookUp", this, &APlayerHamster::LookUp);
+    // Input binding for pause
     PlayerInputComponent->BindAction("Pause", IE_Pressed, this, &APlayerHamster::TogglePauseMenu);
 }
 
+// Player movement
 void APlayerHamster::MoveForward(float Value)
 {
     if (Value > 0.0f)
@@ -208,6 +213,7 @@ void APlayerHamster::MoveForward(float Value)
 
 void APlayerHamster::MoveRight(float Value)
 {
+    // Rotate the player
     if (Value != 0.0f)
     {
         AddControllerYawInput(Value * TurnSpeed * GetWorld()->GetDeltaSeconds());
@@ -216,14 +222,16 @@ void APlayerHamster::MoveRight(float Value)
 
 void APlayerHamster::Brake(float Value)
 {
+    // Apply braking
     if (Value > 0.0f)
     {
         CurrentSpeed = FMath::Clamp(CurrentSpeed - (BrakeForce * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
     }
 }
 
-void APlayerHamster::Turn(float Value)
+void APlayerHamster::Turn(float Value)  
 {
+    // Rotate the camera
     if (SpringArm)
     {
         FRotator NewRotation = SpringArm->GetRelativeRotation();
@@ -244,41 +252,49 @@ void APlayerHamster::LookUp(float Value)
 
 void APlayerHamster::TogglePauseMenu()
 {
+	// Check if the PauseMenuWidget is valid before proceeding with the toggle
     if (!PauseMenuWidget) return;
-
-    bool bGamePaused = UGameplayStatics::IsGamePaused(GetWorld());
-    if (bGamePaused)
+    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+    if (!PlayerController) return;
+    if (bIsPaused)
     {
-        PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden);
-        UGameplayStatics::SetGamePaused(GetWorld(), false);
-        bIsPaused = false;
+		PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden); // Hide the widget when unpausing 
+        PauseMenuWidget->RemoveFromParent();
+		UGameplayStatics::SetGamePaused(GetWorld(), false); // Unpause the game 
+        PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->bShowMouseCursor = false; // Hide the mouse cursor
+        bIsPaused = false; 
     }
     else
     {
-        PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
-        UGameplayStatics::SetGamePaused(GetWorld(), true);
+        PauseMenuWidget->AddToViewport(); // Add the widget to the viewport
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Visible); // Show the widget
+		UGameplayStatics::SetGamePaused(GetWorld(), true); // Pause the game
+        PlayerController->SetInputMode(FInputModeUIOnly()); // Set the input mode
+        PlayerController->bShowMouseCursor = true; // Show the mouse cursor
         bIsPaused = true;
     }
 }
 
-float APlayerHamster::GetSpeed() const
+float APlayerHamster::GetSpeed() const // Get the current speed
 {
     return CurrentSpeed;
 }
 
-void APlayerHamster::RegisterWithGameState()
+void APlayerHamster::RegisterWithGameState() // Register the racer with the game state
 {
     if (GameState)
     {
-        GameState->RegisterRacer(this);
+        GameState->RegisterRacer(this); // Call the RegisterRacer function in the game state
     }
 }
 
-void APlayerHamster::OnWaypointReached(AActor* Waypoint)
+void APlayerHamster::OnWaypointReached(AActor* Waypoint) // Triggered when a waypoint is reached 
 {
-    CurrentWaypointIndex++;
+    CurrentWaypointIndex++; // Increment the current waypoint index
     UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Reached waypoint index %d"), CurrentWaypointIndex);
 
+    // Check if a lap is completed 
     if (GameState && CurrentWaypointIndex >= GameState->TotalWaypoints)
     {
         CurrentLap++;
@@ -286,8 +302,8 @@ void APlayerHamster::OnWaypointReached(AActor* Waypoint)
         UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
     }
 
-    if (GameState)
+    if (GameState) // Update the game state
     {
-        GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
+        GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex); // Call the UpdateRacerProgress function in the game state
     }
 }

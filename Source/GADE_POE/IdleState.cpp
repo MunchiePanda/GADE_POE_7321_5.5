@@ -11,23 +11,7 @@ void UIdleState::EnterState(ASpectator* Spectator) // Called when entering the I
 
 void UIdleState::UpdateState(ASpectator* Spectator, float DeltaTime)
 {
-	TArray<AActor*> FoundRacers; // Array to store found racers
-	UGameplayStatics::GetAllActorsOfClass(Spectator->GetWorld(), AAIRacer::StaticClass(), FoundRacers); // Get all actors of class AAIRacer
-
-	for (AActor* Actor : FoundRacers) // Iterate through all found racers
-    {
-		AAIRacer* Racer = Cast<AAIRacer>(Actor); // Cast the actor to AAIRacer
-		// Check if the cast was successful
-        if (Racer) 
-        {
-			float Distance = FVector::Dist(Spectator->GetActorLocation(), Racer->GetActorLocation()); // Calculate the distance between the spectator and the racer
-            if (Distance <= Spectator->ReactionDistance) 
-			{ // If the distance is within the reaction distance
-                Spectator->Cheer();
-                break;
-            }
-        }
-    }
+	// No logic here; transitions are handled by SwitchToNextState
 }
 
 void UIdleState::ExitState(ASpectator* Spectator) // Called when exiting the Idle state

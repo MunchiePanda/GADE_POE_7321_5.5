@@ -31,7 +31,7 @@ void UBeginnerRaceHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	UpdatePositionDisplay();
 }
 
-void UBeginnerRaceHUD::UpdateLapCounter()
+void UBeginnerRaceHUD::UpdateLapCounter() // Update the lap counter display
 {
     if (PlayerHamster && GameState && LapCounter)
     {
@@ -66,8 +66,8 @@ FText UBeginnerRaceHUD::GetSpeedText() const // Function to get the speed text
 {
     if (PlayerHamster)
     {
-        return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), PlayerHamster->GetSpeed()));
+        return FText::FromString(FString::Printf(TEXT("Speed: %.1f km/h"), PlayerHamster->GetSpeed())); // Return the speed
 
     }
-    return FText::FromString(TEXT("Speed: 0 km/h"));
+    return FText::FromString(TEXT("Speed: 0 km/h")); // Return the speed
 }

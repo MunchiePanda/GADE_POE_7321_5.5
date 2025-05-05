@@ -2,16 +2,16 @@
 #include "Kismet/GameplayStatics.h"
 #include "CustomLinkedList.h"
 
-AWaypointManager::AWaypointManager()
+AWaypointManager::AWaypointManager() // Constructor
 {
     WaypointList = CreateDefaultSubobject<UCustomLinkedList>(TEXT("WaypointList"));
 }
 
-void AWaypointManager::BeginPlay()
+void AWaypointManager::BeginPlay() // Called when the game starts
 {
     Super::BeginPlay();
 
-    TArray<AActor*> FoundWaypoints;
+	TArray<AActor*> FoundWaypoints; // Array to hold found waypoints
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), FoundWaypoints);
 
     Waypoints.Empty();
@@ -19,11 +19,11 @@ void AWaypointManager::BeginPlay()
     {
         if (Actor && Actor->GetName().Contains(TEXT("BP_Waypoint_C_")))
         {
-            Waypoints.Add(Actor);
+			Waypoints.Add(Actor); // Add waypoint to the list
         }
     }
 
-    if (Waypoints.Num() == 0)
+    if (Waypoints.Num() == 0) // No waypoints found
     {
         UE_LOG(LogTemp, Warning, TEXT("WaypointManager: No waypoints found."));
         return;
@@ -50,7 +50,7 @@ void AWaypointManager::BeginPlay()
         return NumberA < NumberB;
         });
 
-    WaypointList->Clear();
+    WaypointList->Clear(); // Clear the list
     for (AActor* Waypoint : Waypoints)
     {
         WaypointList->Add(Waypoint);
@@ -60,20 +60,20 @@ void AWaypointManager::BeginPlay()
     UE_LOG(LogTemp, Log, TEXT("WaypointManager: Found and sorted %d waypoints."), Waypoints.Num());
 }
 
-AActor* AWaypointManager::GetWaypoint(int Index)
+AActor* AWaypointManager::GetWaypoint(int Index) // Get a waypoint by index
 {
-    if (!WaypointList)
+    if (!WaypointList) // Check if the list is valid
     {
         UE_LOG(LogTemp, Warning, TEXT("WaypointManager: WaypointList is null."));
         return nullptr;
     }
 
-    AActor* Waypoint = WaypointList->GetAt(Index);
+    AActor* Waypoint = WaypointList->GetAt(Index); // Get the waypoint
     if (!Waypoint)
     {
         UE_LOG(LogTemp, Warning, TEXT("WaypointManager: No waypoint found at index %d."), Index);
         return nullptr;
     }
 
-    return Waypoint;
+	return Waypoint; // Return the waypoint
 }

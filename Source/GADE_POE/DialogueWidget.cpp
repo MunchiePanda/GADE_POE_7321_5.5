@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "DialogueWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
@@ -11,24 +8,25 @@
 #include "Engine/AssetManager.h"
 #include "TimerManager.h"
 #include "Camera/CameraActor.h"
+#include "RaceGameInstance.h"
 
 void UDialogueWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
     // Find the Camera Actor in the level
     CameraActor = UGameplayStatics::GetActorOfClass(GetWorld(), ACameraActor::StaticClass());
-
     if (CameraActor)
     {
         InitialCameraPosition = CameraActor->GetActorLocation();
-        FinalCameraPosition = InitialCameraPosition + FVector(0, 0, -50); // Move camera slightly forward
+        FinalCameraPosition = InitialCameraPosition + FVector(0, 0, -50);
     }
 
     // Get Player Controller
     APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
     if (PlayerController && CameraActor)
     {
-        PlayerController->SetViewTargetWithBlend(CameraActor, 1.0f); // 1-second smooth transition
+        PlayerController->SetViewTargetWithBlend(CameraActor, 1.0f);
     }
 
     // Bind button click event
@@ -37,15 +35,96 @@ void UDialogueWidget::NativeConstruct()
         NextButton->OnClicked.AddDynamic(this, &UDialogueWidget::OnNextButtonClicked);
     }
 
+    // Get current level name
+    FString LevelName = GetWorld()->GetMapName();
+    UE_LOG(LogTemp, Log, TEXT("DialogueWidget: Current level: %s"), *LevelName);
+
+    // Set JSON file and TargetRaceLevel based on level name
+    FString JsonFile;
+    if (LevelName.Contains("BeginnerDialogueLVL"))
+    {
+        JsonFile = "BeginnerRaceDialogue.json";
+        TargetRaceLevel = FName("BeginnerMap");
+    }
+    else if (LevelName.Contains("CheckpointDialogueLVL"))
+    {
+        JsonFile = "GADE_TEST.json";
+        TargetRaceLevel = FName("CheckpointMap");
+    }
+    else
+    {
+        // Fallback to Game Instance if level name is unrecognized
+        URaceGameInstance* GameInstance = Cast<URaceGameInstance>(GetGameInstance());
+        if (GameInstance && !GameInstance->TargetRaceLevel.IsNone())
+        {
+            TargetRaceLevel = GameInstance->TargetRaceLevel;
+            UE_LOG(LogTemp, Log, TEXT("DialogueWidget: Set TargetRaceLevel from GameInstance: %s"), *TargetRaceLevel.ToString());
+            if (TargetRaceLevel == FName("BeginnerDialogueLVL"))
+            {
+                JsonFile = "BeginnerRaceDialogue.json";
+                TargetRaceLevel = FName("BeginnerMap");
+            }
+            else if (TargetRaceLevel == FName("CheckpointDialogueLVL"))
+            {
+                JsonFile = "GADE_TEST.json";
+                TargetRaceLevel = FName("CheckpointMap");
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("DialogueWidget: Invalid TargetRaceLevel %s from GameInstance, defaulting to GADE_TEST.json"), *TargetRaceLevel.ToString());
+                JsonFile = "GADE_TEST.json";
+                TargetRaceLevel = FName("CheckpointMap");
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("DialogueWidget: Unrecognized level %s and no valid GameInstance TargetRaceLevel, defaulting to GADE_TEST.json"), *LevelName);
+            JsonFile = "GADE_TEST.json";
+            TargetRaceLevel = FName("CheckpointMap");
+        }
+    }
+
     // Load dialogue data
     DialogueData = NewObject<UDialogue_Data>();
-    if (DialogueData->LoadDialogue("GADE_TEST.json"))
+    if (DialogueData->LoadDialogue(JsonFile))
     {
-        OnNextButtonClicked();  // Show first dialogue automatically
+        OnNextButtonClicked();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("DialogueWidget: Failed to load JSON file %s"), *JsonFile);
     }
 }
 
-// Function to display dialogue
+void UDialogueWidget::NativeDestruct()
+{
+    // Clear the typing timer
+    if (GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(TypingTimerHandle))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("DialogueWidget: Clearing active TypingTimerHandle"));
+        GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle);
+    }
+
+    // Remove loading screen widget
+    if (LoadingScreenWidget)
+    {
+        LoadingScreenWidget->RemoveFromParent();
+        LoadingScreenWidget = nullptr;
+    }
+
+    // Nullify pointers
+    LoadingProgressSlider = nullptr;
+    DialogueData = nullptr;
+
+    // Unbind button delegate
+    if (NextButton)
+    {
+        NextButton->OnClicked.RemoveDynamic(this, &UDialogueWidget::OnNextButtonClicked);
+    }
+
+    Super::NativeDestruct();
+}
+
 void UDialogueWidget::DisplayDialogue(FDialogue_Item DialogueItem)
 {
     if (SpeakerNameText)
@@ -56,10 +135,10 @@ void UDialogueWidget::DisplayDialogue(FDialogue_Item DialogueItem)
     if (DialogueTextBlock)
     {
         DialogueTextBlock->SetText(FText::FromString(DialogueItem.DialogueText));
-		StartTypingEffect(DialogueItem.DialogueText); // Start typing effect
+        StartTypingEffect(DialogueItem.DialogueText);
     }
 
-    if (SpeakerPortraitImage && SpeakerPortraits.Contains(DialogueItem.SpeakerPortrait)) //checks the speaker name (map key) 
+    if (SpeakerPortraitImage && SpeakerPortraits.Contains(DialogueItem.SpeakerPortrait))
     {
         SpeakerPortraitImage->SetBrushFromTexture(SpeakerPortraits[DialogueItem.SpeakerPortrait]);
     }
@@ -69,52 +148,53 @@ void UDialogueWidget::DisplayDialogue(FDialogue_Item DialogueItem)
     }
 
     if (AgeText)
-	{
+    {
         AgeText->SetText(FText::FromString(FString::Printf(TEXT("Age: %d"), DialogueItem.Age)));
-	}
+    }
 }
-
 
 void UDialogueWidget::OnNextButtonClicked()
 {
-	if (DialogueData && !DialogueData->IsQueueEmpty()) // Check if there are more dialogues
+    if (DialogueData && !DialogueData->IsQueueEmpty())
     {
         FDialogue_Item NextDialogue = DialogueData->GetNextDialogue();
         DisplayDialogue(NextDialogue);
-
-		// Move camera closer to the hamster
-		MoveCameraCloser();
+        MoveCameraCloser();
     }
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("Dialogue finished!"));
-        RemoveFromParent(); // Hide UI when dialogue ends
-        LoadLevelAsync(FName("CheckpointMap")); // Load the next level
+        RemoveFromParent();
+        if (!TargetRaceLevel.IsNone())
+        {
+            LoadLevelAsync(TargetRaceLevel);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("DialogueWidget: TargetRaceLevel is not set, defaulting to CheckpointMap"));
+            LoadLevelAsync(FName("CheckpointMap"));
+        }
     }
 }
 
 void UDialogueWidget::MoveCameraCloser()
 {
-
     if (CameraActor)
     {
         FVector CurrentPosition = CameraActor->GetActorLocation();
-
-        // Move towards the final position smoothly
         FVector NewPosition = FMath::VInterpTo(CurrentPosition, FinalCameraPosition, GetWorld()->GetDeltaSeconds(), CameraMoveSpeed);
-
         CameraActor->SetActorLocation(NewPosition);
     }
 }
 
 void UDialogueWidget::ShowLoadingScreen()
 {
-	if (LoadingScreenWidgetClass) // Check if the class is set in the editor
+    if (LoadingScreenWidgetClass)
     {
         LoadingScreenWidget = CreateWidget<UUserWidget>(GetWorld(), LoadingScreenWidgetClass);
-		if (LoadingScreenWidget) // Check if the widget was created successfully
+        if (LoadingScreenWidget)
         {
-            LoadingScreenWidget->AddToViewport(); // Add the widget to the viewport
+            LoadingScreenWidget->AddToViewport();
             LoadingProgressSlider = Cast<USlider>(LoadingScreenWidget->GetWidgetFromName(TEXT("LoadingProgressSlider")));
         }
     }
@@ -122,15 +202,15 @@ void UDialogueWidget::ShowLoadingScreen()
 
 void UDialogueWidget::HideLoadingScreen()
 {
-	if (LoadingScreenWidget) // Check if the widget exists
+    if (LoadingScreenWidget)
     {
-        LoadingScreenWidget->RemoveFromParent(); // Remove the widget from the viewport
-        LoadingScreenWidget = nullptr; // Set the widget pointer to nullptr
-        LoadingProgressSlider = nullptr; // Set the slider pointer to nullptr
+        LoadingScreenWidget->RemoveFromParent();
+        LoadingScreenWidget = nullptr;
     }
+    LoadingProgressSlider = nullptr;
 }
 
-void UDialogueWidget::LoadLevelAsync(const FName& LevelName) // Function to load a level asynchronously
+void UDialogueWidget::LoadLevelAsync(const FName& LevelName)
 {
     if (LevelName.IsNone())
     {
@@ -140,51 +220,46 @@ void UDialogueWidget::LoadLevelAsync(const FName& LevelName) // Function to load
 
     ShowLoadingScreen();
 
-    // Delay opening the level by 2 seconds (simulating async load)
     FTimerHandle TimerHandle;
     GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this, LevelName]()
         {
             HideLoadingScreen();
             UGameplayStatics::OpenLevel(this, LevelName);
-        }, 2.0f, false);  // Adjust delay time if needed
+        }, 2.0f, false);
 
     UE_LOG(LogTemp, Warning, TEXT("Starting async load for level: %s"), *LevelName.ToString());
 }
 
-
 void UDialogueWidget::UpdateLoadingProgress(float Progress)
 {
-    if (LoadingProgressSlider) // Check if the slider exists
+    if (LoadingScreenWidget)
     {
-        LoadingProgressSlider->SetValue(Progress); // Update the slider value
+        LoadingProgressSlider->SetValue(Progress);
     }
 }
-
 
 void UDialogueWidget::StartTypingEffect(const FString& FullText)
 {
     CurrentText = FullText;
-    DisplayedText = TEXT(""); // Reset displayed text
-    CurrentCharIndex = 0;     // Start from the first letter
+    DisplayedText = TEXT("");
+    CurrentCharIndex = 0;
 
-    // Start the typing effect by calling TypeNextLetter()
-	GetWorld()->GetTimerManager().SetTimer(TypingTimerHandle, this, &UDialogueWidget::TypeNextLetter, 0.05f, true); // Adjust the delay time if needed
+    GetWorld()->GetTimerManager().SetTimer(TypingTimerHandle, this, &UDialogueWidget::TypeNextLetter, 0.05f, true);
 }
 
-void UDialogueWidget::TypeNextLetter() // Function to type the next letter
+void UDialogueWidget::TypeNextLetter()
 {
-    if (CurrentCharIndex < CurrentText.Len()) // Check if there are more letters
+    if (CurrentCharIndex < CurrentText.Len())
     {
-        DisplayedText.AppendChar(CurrentText[CurrentCharIndex]); // Append the next letter
-        if (DialogueTextBlock) // Check if the text block exists
+        DisplayedText.AppendChar(CurrentText[CurrentCharIndex]);
+        if (DialogueTextBlock)
         {
-			DialogueTextBlock->SetText(FText::FromString(DisplayedText)); // Update the text block
+            DialogueTextBlock->SetText(FText::FromString(DisplayedText));
         }
-		CurrentCharIndex++; // Move to the next letter
+        CurrentCharIndex++;
     }
     else
     {
-        // Stop the timer when the text is fully displayed
-        GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle); 
+        GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle);
     }
 }

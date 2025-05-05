@@ -88,7 +88,7 @@ void AAIRacer::SetupRacerAttributes()
 
     // Update movement component attributes
     UCharacterMovementComponent* Movement = GetCharacterMovement();
-    if (Movement)
+    if (Movement) // Check if the movement component is valid
     {
         Movement->MaxWalkSpeed = MaxSpeed;
         Movement->MaxAcceleration = MaxAcceleration;

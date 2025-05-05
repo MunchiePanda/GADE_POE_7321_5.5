@@ -19,43 +19,43 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
 
-	//Set the current state of the spectator
-    UFUNCTION(BlueprintCallable, Category = "Spectator") 
-    void SetState(TScriptInterface<ISpectatorState> NewState);
-
-	//Set the current state of the spectator to cheering
     UFUNCTION(BlueprintCallable, Category = "Spectator")
-    void Cheer();
+	void SetState(TScriptInterface<ISpectatorState> NewState); // Function to set the current state of the spectator
 
-	//Set the current state of the spectator to disappointed
     UFUNCTION(BlueprintCallable, Category = "Spectator")
-    void BeDisappointed();
+	void Cheer(); // Cheer function to set the spectator to cheering state
 
-	//Set the current state of the spectator to idle
     UFUNCTION(BlueprintCallable, Category = "Spectator")
-    void BeIdle();
+	void BeDisappointed(); // Function to set the spectator to disappointed state
+
+    UFUNCTION(BlueprintCallable, Category = "Spectator")
+	void BeIdle(); // Function to set the spectator to idle state
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spectator")
-	class USkeletalMeshComponent* SpectatorMesh; // Mesh component for the spectator
+    class USkeletalMeshComponent* SpectatorMesh; // The skeletal mesh component of the spectator
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spectator")
-	TScriptInterface<ISpectatorState> CurrentState; // Current state of the spectator
+	TScriptInterface<ISpectatorState> CurrentState; // The current state of the spectator 
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spectator")
-	FName CurrentStateName; // Name of the current state
+    FName CurrentStateName; // The name of the current state
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectator Animation")
-	FName IdleAnimationName = "Idle"; // Animation name for idle state
+	FName IdleAnimationName = "Idle"; // The name of the idle animation
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectator Animation")
-	FName CheeringAnimationName = "Cheering"; // Animation name for cheering state
+    FName CheeringAnimationName = "Cheering"; // The name of the cheering animation
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectator Animation")
-	FName DisappointedAnimationName = "Disappointed"; // Animation name for disappointed state
+    FName DisappointedAnimationName = "Disappointed"; // The name of the disappointed animation
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectator")
-	float ReactionDistance = 1000.0f; // Distance within which the spectator reacts to racers
+    float ReactionDistance = 1000.0f; // The distance at which the spectator reacts
 
+    FTimerHandle StateSwitchTimer;
+    void SwitchToNextState(); // Function to switch to the next state
 
-	float StateTimer; // Timer for the current state
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectator")
+    float InitialStateDelay = 0.0f; // Initial delay before starting state transitions (in seconds)
 };
+

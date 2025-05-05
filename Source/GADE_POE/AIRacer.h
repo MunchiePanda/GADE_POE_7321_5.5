@@ -7,7 +7,7 @@
 #include "AIRacer.generated.h"
 
 class AAIRacerContoller; // Forward declaration
-class ABeginnerRaceGameState;
+class ABeginnerRaceGameState; // Forward declaration
 
 UCLASS()
 class GADE_POE_API AAIRacer : public ACharacter
@@ -18,24 +18,24 @@ public:
     AAIRacer();
     // Sets default values for this character's properties
     UPROPERTY(VisibleAnywhere, Category = "Mesh")
-    USkeletalMeshComponent* RacerMesh;
+    USkeletalMeshComponent* RacerMesh; // Reference to the skeletal mesh component
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 LapCount = 0;
+    int32 LapCount = 0; // Number of laps completed
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 WaypointsPassed = 0;
+    int32 WaypointsPassed = 0; // Number of waypoints passed
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    ERacerType RacerType;
+    ERacerType RacerType; // Type of racer
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxSpeed;
+	float MaxSpeed; // Maximum speed of the racer
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxAcceleration;
+	float MaxAcceleration; // Maximum acceleration of the racer
 
-    void SetupRacerAttributes();
+	void SetupRacerAttributes(); // Set up racer attributes based on type of racer
 
 protected:
     virtual void BeginPlay() override;

@@ -13,19 +13,19 @@ struct FRacerLeaderboardEntry
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly)
-    AActor* Racer;
+    AActor* Racer; // Reference to the racer
 
     UPROPERTY(BlueprintReadOnly)
-    FString RacerName;
+    FString RacerName; // Name of the racer
 
     UPROPERTY(BlueprintReadOnly)
-    int32 Lap;
+    int32 Lap; // Current lap
 
     UPROPERTY(BlueprintReadOnly)
-    int32 WaypointIndex;
+	int32 WaypointIndex; // Current waypoint index
 
     UPROPERTY(BlueprintReadOnly)
-    int32 Placement;
+    int32 Placement; // Current placement
 };
 
 UCLASS()
@@ -39,25 +39,25 @@ public:
     virtual void Tick(float DeltaTime) override;
 
     UFUNCTION(BlueprintCallable, Category = "Leaderboard")
-    void RegisterRacer(AActor* Racer);
+    void RegisterRacer(AActor* Racer); // Register the racer with the game state
 
     UFUNCTION(BlueprintCallable, Category = "Leaderboard")
-    void UpdateRacerProgress(AActor* Racer, int32 Lap, int32 WaypointIndex);
+    void UpdateRacerProgress(AActor* Racer, int32 Lap, int32 WaypointIndex); // Update the racer's progress
 
     UFUNCTION(BlueprintCallable, Category = "Leaderboard")
-    TArray<FRacerLeaderboardEntry> GetLeaderboard() const;
+    TArray<FRacerLeaderboardEntry> GetLeaderboard() const; // Get the leaderboard
 
     UPROPERTY(BlueprintReadOnly, Category = "Leaderboard")
-    TArray<FRacerLeaderboardEntry> Leaderboard;
+    TArray<FRacerLeaderboardEntry> Leaderboard; // Leaderboard
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 TotalLaps;
+    int32 TotalLaps; // Total number of laps
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 TotalWaypoints;
+    int32 TotalWaypoints; // Total number of waypoints
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    bool bRaceFinished;
+    bool bRaceFinished; // Whether the race has finished
 private:
-    void UpdateLeaderboard();
+    void UpdateLeaderboard(); // Update the leaderboard
 };

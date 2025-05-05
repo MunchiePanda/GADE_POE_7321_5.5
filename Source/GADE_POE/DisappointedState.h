@@ -11,11 +11,12 @@ class GADE_POE_API UDisappointedState : public UObject, public ISpectatorState
     GENERATED_BODY()
 
 public:
-	virtual void EnterState(ASpectator* Spectator) override; // Called when the spectator enters the disappointed state
-	virtual void UpdateState(ASpectator* Spectator, float DeltaTime) override; // Called every frame while the spectator is in the disappointed state
-	virtual void ExitState(ASpectator* Spectator) override; // Called when the spectator exits the disappointed state
-	virtual FName GetStateName() const override { return FName("Disappointed"); } // Returns the name of the disappointed state
+    virtual void EnterState(ASpectator* Spectator) override; // Called when entering the Disappointed state
+    virtual void UpdateState(ASpectator* Spectator, float DeltaTime) override; // Update the state
+    virtual void ExitState(ASpectator* Spectator) override; // Called when exiting the Disappointed state
+	virtual FName GetStateName() const override { return FName("Disappointed"); } // Returns the name of the Disappointed state
 
 private:
-	float DisappointedDuration = 5.0f; // Duration of the disappointed state
+    float DisappointedDuration = 5.0f; // Duration of the disappointed state
+    float StateTimer = 0.0f;           // Timer for this state instance
 };

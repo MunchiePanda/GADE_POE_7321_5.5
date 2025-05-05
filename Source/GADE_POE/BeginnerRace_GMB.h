@@ -15,8 +15,8 @@ public:
 
     virtual void BeginPlay() override; 
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectators")
-	TArray<ASpectator*> Spectators; // Array to hold all spectators in the level
+   // UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spectators")
+	//TArray<ASpectator*> Spectators; // Array to hold all spectators in the level
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HUD")
     TSubclassOf<UUserWidget> TutorialWidgetClass; // The class of the tutorial widget
