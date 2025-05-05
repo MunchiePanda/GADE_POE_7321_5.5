@@ -15,7 +15,7 @@
 
 APlayerHamster::APlayerHamster()
 {
-	// Set this character to call Tick() every frame
+    // Set this character to call Tick() every frame
     PrimaryActorTick.bCanEverTick = true;
 
     /*Set all the default values*/
@@ -41,6 +41,7 @@ APlayerHamster::APlayerHamster()
 
     CurrentLap = 0;
     CurrentWaypointIndex = 0;
+    bIsPlayer = true;
 }
 
 void APlayerHamster::BeginPlay()
@@ -51,6 +52,7 @@ void APlayerHamster::BeginPlay()
     {
         Spline = FindComponentByClass<USplineComponent>();
     }
+
     // Create PauseMenuWidget but don't add to viewport yet
     if (PauseMenuWidgetClass)
     {
@@ -65,7 +67,21 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: PauseMenuWidgetClass is not set in the editor!"));
     }
 
-    // Create HUD but don't add to viewport yet 
+    // Create EndUIWidget but don't add to viewport yet
+    if (EndUIWidgetClass)
+    {
+        EndUIWidget = CreateWidget<UUserWidget>(GetWorld(), EndUIWidgetClass);
+        if (!EndUIWidget)
+        {
+            UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Failed to create EndUIWidget!"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PlayerHamster: EndUIWidgetClass is not set in the editor!"));
+    }
+
+    // Create HUD and add to viewport
     if (HUDClass)
     {
         HUDWidget = CreateWidget<UBeginnerRaceHUD>(GetWorld()->GetFirstPlayerController(), HUDClass);
@@ -118,17 +134,39 @@ void APlayerHamster::BeginPlay()
     }
 
     RegisterWithGameState();
+
+    // Ensure game input mode
+    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+    if (PlayerController)
+    {
+        PlayerController->SetInputMode(FInputModeGameOnly());
+        PlayerController->bShowMouseCursor = false;
+    }
 }
 
 void APlayerHamster::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-	// Check if the player has finished the race and disable movement
+    // Check if the player has finished the race and disable movement
     if (GameState && CurrentLap >= GameState->TotalLaps)
     {
         GetCharacterMovement()->DisableMovement();
-        return;
+    }
+
+    // Show End UI when race finishes
+    if (GameState && GameState->bRaceFinished && !bEndUIShown && EndUIWidget)
+    {
+        EndUIWidget->AddToViewport();
+        EndUIWidget->SetVisibility(ESlateVisibility::Visible);
+        APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+        if (PlayerController)
+        {
+            PlayerController->SetInputMode(FInputModeUIOnly());
+            PlayerController->bShowMouseCursor = true;
+        }
+        bEndUIShown = true;
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: End UI shown"));
     }
 
     // Check distance to current waypoint and trigger OnWaypointReached if close enough 
@@ -189,7 +227,7 @@ void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindAxis("MoveForward", this, &APlayerHamster::MoveForward);
     PlayerInputComponent->BindAxis("MoveRight", this, &APlayerHamster::MoveRight);
     PlayerInputComponent->BindAxis("Brake", this, &APlayerHamster::Brake);
-	// Input bindings for camera control
+    // Input bindings for camera control
     PlayerInputComponent->BindAxis("Turn", this, &APlayerHamster::Turn);
     PlayerInputComponent->BindAxis("LookUp", this, &APlayerHamster::LookUp);
     // Input binding for pause
@@ -229,7 +267,7 @@ void APlayerHamster::Brake(float Value)
     }
 }
 
-void APlayerHamster::Turn(float Value)  
+void APlayerHamster::Turn(float Value)
 {
     // Rotate the camera
     if (SpringArm)
@@ -252,24 +290,24 @@ void APlayerHamster::LookUp(float Value)
 
 void APlayerHamster::TogglePauseMenu()
 {
-	// Check if the PauseMenuWidget is valid before proceeding with the toggle
+    // Check if the PauseMenuWidget is valid before proceeding with the toggle
     if (!PauseMenuWidget) return;
     APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
     if (!PlayerController) return;
     if (bIsPaused)
     {
-		PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden); // Hide the widget when unpausing 
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden); // Hide the widget when unpausing 
         PauseMenuWidget->RemoveFromParent();
-		UGameplayStatics::SetGamePaused(GetWorld(), false); // Unpause the game 
+        UGameplayStatics::SetGamePaused(GetWorld(), false); // Unpause the game 
         PlayerController->SetInputMode(FInputModeGameOnly());
-		PlayerController->bShowMouseCursor = false; // Hide the mouse cursor
-        bIsPaused = false; 
+        PlayerController->bShowMouseCursor = false; // Hide the mouse cursor
+        bIsPaused = false;
     }
     else
     {
         PauseMenuWidget->AddToViewport(); // Add the widget to the viewport
         PauseMenuWidget->SetVisibility(ESlateVisibility::Visible); // Show the widget
-		UGameplayStatics::SetGamePaused(GetWorld(), true); // Pause the game
+        UGameplayStatics::SetGamePaused(GetWorld(), true); // Pause the game
         PlayerController->SetInputMode(FInputModeUIOnly()); // Set the input mode
         PlayerController->bShowMouseCursor = true; // Show the mouse cursor
         bIsPaused = true;
