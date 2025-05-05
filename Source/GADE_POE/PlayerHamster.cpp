@@ -152,6 +152,8 @@ void APlayerHamster::Tick(float DeltaTime)
     if (GameState && CurrentLap >= GameState->TotalLaps)
     {
         GetCharacterMovement()->DisableMovement();
+
+        GameState->bRaceFinished = true;
     }
 
     // Show End UI when race finishes
