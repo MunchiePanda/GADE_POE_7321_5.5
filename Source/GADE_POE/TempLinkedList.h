@@ -1,18 +1,16 @@
 #pragma once
-
 #include "CoreMinimal.h"
 
-// Debug macro to verify inclusion
 #define TEMPLINKEDLIST_DEBUG 1
 
-template<typename T> // Templated linked list
+template<typename T>
 struct TNode
 {
-	T Data; // Data of type T
-    TNode* Next; // Pointer to the next node
+    T Data;
+    TNode* Next;
 
-	TNode() : Data(), Next(nullptr) {} // Default constructor
-    TNode(const T& InData) : Data(InData), Next(nullptr) {} // Constructor
+    TNode() : Data(), Next(nullptr) {}
+    TNode(const T& InData) : Data(InData), Next(nullptr) {}
 };
 
 template<typename T>
@@ -24,40 +22,34 @@ private:
 
 public:
     TempLinkedList() : Head(nullptr), Count(0) {}
-
-    ~TempLinkedList()
-    {
-        Clear();
-    }
+    ~TempLinkedList() { Clear(); }
 
     void Add(const T& Data)
     {
-		TNode<T>* NewNode = new TNode<T>(Data); // Create a new node with the given data
+        TNode<T>* NewNode = new TNode<T>(Data);
         if (!Head)
         {
-			Head = NewNode; // If the list is empty, set the head to the new node
+            Head = NewNode;
         }
         else
         {
-			TNode<T>* Current = Head; // Start from the head
-            while (Current->Next) // Find the last node
-            { 
-                Current = Current->Next; 
+            TNode<T>* Current = Head;
+            while (Current->Next)
+            {
+                Current = Current->Next;
             }
             Current->Next = NewNode;
         }
-		Count++; // Increment the count
+        Count++;
     }
 
-	T GetAt(int32 Index) const // Get the data at a specific index
+    T GetAt(int32 Index) const
     {
-        if (Index < 0 || Index >= Count) 
+        if (Index < 0 || Index >= Count)
         {
             UE_LOG(LogTemp, Warning, TEXT("TLinkedList: Index out of range: %d"), Index);
-			return T(); // Return default value if index is out of range
+            return T();
         }
-
-		// Traverse to the specified index
         TNode<T>* Current = Head;
         for (int32 i = 0; i < Index; i++)
         {
@@ -66,23 +58,34 @@ public:
         return Current->Data;
     }
 
-	int32 GetCount() const // Get the number of elements in the list
-    {
-        return Count;
-    }
+    int32 GetCount() const { return Count; }
 
-    void Clear() // Clear the list
+    void Clear()
     {
-        // Traverse the list and delete each node 
         TNode<T>* Current = Head;
-		// Delete each node in the list
         while (Current)
         {
             TNode<T>* Next = Current->Next;
             delete Current;
             Current = Next;
         }
-        Head = nullptr; // Set the head to nullptr
-        Count = 0; // Set the count to 0
+        Head = nullptr;
+        Count = 0;
     }
+
+    // New: Find a node by data
+    TNode<T>* Find(const T& Data) const
+    {
+        TNode<T>* Current = Head;
+        while (Current)
+        {
+            if (Current->Data == Data)
+                return Current;
+            Current = Current->Next;
+        }
+        return nullptr;
+    }
+
+    // New: Get head for iteration
+    TNode<T>* GetHead() const { return Head; }
 };
