@@ -1,7 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "TempLinkedList.h"
+#include "TempHashMap.h"
 #include "Graph.generated.h"
 
 USTRUCT()
@@ -9,8 +9,8 @@ struct FGraphNode
 {
     GENERATED_BODY()
     UPROPERTY()
-    AActor* Waypoint; // Waypoint Actor (e.g., placed on spline)
-    TempLinkedList<AActor*> Neighbors; // List of neighboring waypoints
+    AActor* Waypoint;
+    TempLinkedList<AActor*> Neighbors;
 
     FGraphNode() : Waypoint(nullptr) {}
     FGraphNode(AActor* InWaypoint) : Waypoint(InWaypoint) {}
@@ -30,10 +30,8 @@ public:
     void AddEdge(AActor* From, AActor* To);
 
     UFUNCTION(BlueprintCallable)
-    TArray<AActor*> GetNeighbors(AActor* Waypoint); // TArray for Blueprint compatibility
+    TArray<AActor*> GetNeighbors(AActor* Waypoint);
 
 private:
-    TempLinkedList<FGraphNode> Nodes; // List of graph nodes
-
-    TNode<FGraphNode>* FindNode(AActor* Waypoint); // Find node by waypoint
+    TempHashMap<AActor*, FGraphNode> Nodes;
 };

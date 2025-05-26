@@ -7,29 +7,33 @@ AGraph::AGraph()
 
 void AGraph::AddNode(AActor* Waypoint)
 {
-    if (Waypoint && !FindNode(Waypoint))
+    if (Waypoint)
     {
-        Nodes.Add(FGraphNode(Waypoint));
+        FGraphNode* ExistingNode = Nodes.Get(Waypoint);
+        if (!ExistingNode)
+        {
+            Nodes.Add(Waypoint, FGraphNode(Waypoint));
+        }
     }
 }
 
 void AGraph::AddEdge(AActor* From, AActor* To)
 {
-    TNode<FGraphNode>* FromNode = FindNode(From);
-    TNode<FGraphNode>* ToNode = FindNode(To);
+    FGraphNode* FromNode = Nodes.Get(From);
+    FGraphNode* ToNode = Nodes.Get(To);
     if (FromNode && ToNode)
     {
-        FromNode->Data.Neighbors.Add(To);
+        FromNode->Neighbors.Add(To);
     }
 }
 
 TArray<AActor*> AGraph::GetNeighbors(AActor* Waypoint)
 {
-    TArray<AActor*> Result; // Temporary TArray for Blueprint output
-    TNode<FGraphNode>* Node = FindNode(Waypoint);
+    TArray<AActor*> Result;
+    FGraphNode* Node = Nodes.Get(Waypoint);
     if (Node)
     {
-        TNode<AActor*>* Current = Node->Data.Neighbors.GetHead();
+        TNode<AActor*>* Current = Node->Neighbors.GetHead();
         while (Current)
         {
             Result.Add(Current->Data);
@@ -37,16 +41,4 @@ TArray<AActor*> AGraph::GetNeighbors(AActor* Waypoint)
         }
     }
     return Result;
-}
-
-TNode<FGraphNode>* AGraph::FindNode(AActor* Waypoint)
-{
-    TNode<FGraphNode>* Current = Nodes.GetHead();
-    while (Current)
-    {
-        if (Current->Data.Waypoint == Waypoint)
-            return Current;
-        Current = Current->Next;
-    }
-    return nullptr;
 }

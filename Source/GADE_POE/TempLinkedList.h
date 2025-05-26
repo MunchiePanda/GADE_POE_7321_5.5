@@ -1,5 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
+#include <functional>
 
 #define TEMPLINKEDLIST_DEBUG 1
 
@@ -73,19 +74,18 @@ public:
         Count = 0;
     }
 
-    // New: Find a node by data
-    TNode<T>* Find(const T& Data) const
+    // Updated Find with predicate
+    TNode<T>* Find(std::function<bool(const T&)> Predicate) const
     {
         TNode<T>* Current = Head;
         while (Current)
         {
-            if (Current->Data == Data)
+            if (Predicate(Current->Data))
                 return Current;
             Current = Current->Next;
         }
         return nullptr;
     }
 
-    // New: Get head for iteration
     TNode<T>* GetHead() const { return Head; }
 };
