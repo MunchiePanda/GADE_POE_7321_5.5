@@ -6,17 +6,20 @@
 #include "PauseMenu_WB.h"
 #include "BiginnerRaceGameState.h"
 #include "BeginnerRaceHUD.h"
-#include "SFXManager.h" // Include SFXManager
+#include "SFXManager.h"
+#include "AdvancedRaceManager.h" // Add this include for AdvancedRaceManager
+#include "Graph.h" // Add this for AGraph access
+#include "WaypointManager.h" // Keep this for compatibility with other levels
 #include "PlayerHamster.generated.h"
 
-// Forward declarations
 class UStaticMeshComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class USplineComponent;
-class AWaypointManager;
 class ABeginnerRaceGameState;
-class SFXManager;
+class USFXManager;
+class AWaypointManager;
+class AAdvancedRaceManager;
 
 UCLASS()
 class GADE_POE_API APlayerHamster : public ACharacter
@@ -33,12 +36,10 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-    // Player movement functions 
     void MoveForward(float Value);
     void MoveRight(float Value);
     void Brake(float Value);
 
-    // Camera control functions
     void Turn(float Value);
     void LookUp(float Value);
 
@@ -48,47 +49,45 @@ public:
     float GetSpeed() const;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spline")
-    USplineComponent* Spline; // Spline component for movement
+    USplineComponent* Spline;
 
     UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> PauseMenuWidgetClass; // Pause menu class
+    TSubclassOf<UUserWidget> PauseMenuWidgetClass;
 
     UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> EndUIWidgetClass; // End UI class
+    TSubclassOf<UUserWidget> EndUIWidgetClass;
 
     UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UBeginnerRaceHUD> HUDClass; // HUD class
+    TSubclassOf<UBeginnerRaceHUD> HUDClass;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 CurrentLap; // Current lap number 
+    int32 CurrentLap;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 CurrentWaypointIndex; // Current waypoint index 
+    int32 CurrentWaypointIndex;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Race")
-    bool bIsPlayer = true; // Flag to identify player
+    bool bIsPlayer = true;
 
 private:
-    // Components 
     UPROPERTY(VisibleAnywhere, Category = "Components")
-    UStaticMeshComponent* HamsterMesh; // Hamster mesh component
+    UStaticMeshComponent* HamsterMesh;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float TurnSpeed = 100.0f; // Turn speed
+    float TurnSpeed = 100.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float AccelerationRate = 500.0f; // Acceleration rate
+    float AccelerationRate = 500.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float DecelerationRate = 300.0f; // Deceleration rate
+    float DecelerationRate = 300.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float MaxSpeed = 4000.0f; // Maximum speed
+    float MaxSpeed = 4000.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float BrakeForce = 800.0f; // Brake force
+    float BrakeForce = 800.0f;
 
-    // Camera and spring arm 
     UPROPERTY(VisibleAnywhere)
     USpringArmComponent* SpringArm;
 
@@ -96,32 +95,38 @@ private:
     UCameraComponent* Camera;
 
     UPROPERTY(VisibleAnywhere, Category = "Spline")
-    float MaxDistanceFromSpline = 200.f; // Maximum distance from the spline
+    float MaxDistanceFromSpline = 200.f;
 
     UPROPERTY()
-    UUserWidget* PauseMenuWidget; // Pause menu widget
+    UUserWidget* PauseMenuWidget;
 
     UPROPERTY()
-    UUserWidget* EndUIWidget; // End UI widget
+    UUserWidget* EndUIWidget;
 
     UPROPERTY()
-    UBeginnerRaceHUD* HUDWidget; // HUD widget
+    UBeginnerRaceHUD* HUDWidget;
 
-    bool bIsPaused = false; // Flag to check if the game is paused
-
-    bool bEndUIShown = false; // Flag to check if End UI is shown
-
-    float CurrentSpeed = 0.0f; // Current speed
+    bool bIsPaused = false;
+    bool bEndUIShown = false;
+    float CurrentSpeed = 0.0f;
 
     UPROPERTY()
-    AWaypointManager* WaypointManager; // Waypoint manager
+    AWaypointManager* WaypointManager; // Keep for compatibility with other levels
 
     UPROPERTY()
-    ABeginnerRaceGameState* GameState; // Game state reference
+    AAdvancedRaceManager* RaceManager; // Add for advanced map
 
-    void RegisterWithGameState(); // Register with game state 
-    void OnWaypointReached(AActor* Waypoint); // Called when a waypoint is reached
+    UPROPERTY()
+    ABeginnerRaceGameState* GameState;
 
-    UPROPERTY(VisibleAnywhere, Category = "Audio")
-    USFXManager* SFXManager; // Add SFXManager as a component
+    UPROPERTY(VisibleAnywhere, Category = "Audio", Meta = (AllowPrivateAccess = "true"))
+    USFXManager* SFXManager;
+
+    bool bUseGraphNavigation = false; // Flag to determine navigation mode
+
+    UPROPERTY()
+    AActor* CurrentWaypoint; // Used for graph navigation
+
+    void RegisterWithGameState();
+    void OnWaypointReached(AActor* Waypoint);
 };

@@ -2,28 +2,13 @@
 
 UHashMap::UHashMap()
 {
-    Table.SetNum(TableSize); // Initialize array with null pointers
-    for (int32 i = 0; i < TableSize; ++i)
-    {
-        Table[i] = nullptr; // Assign nullptr to each pointer element
-    }
+    Table.SetNum(TableSize); // Initialize 2D array
     Size = 0;
 }
 
 UHashMap::~UHashMap()
 {
-    // Safely clean up manually allocated FHashMapEntry nodes
-    for (int32 i = 0; i < TableSize; ++i)
-    {
-        FHashMapEntry* Entry = Table[i];
-        while (Entry)
-        {
-            FHashMapEntry* Temp = Entry;
-            Entry = Entry->Next;
-            delete Temp; // Delete the FHashMapEntry structure
-        }
-        Table[i] = nullptr; // Reset to null for safety
-    }
+    // No manual deletion needed; TArray handles cleanup
 }
 
 uint32 UHashMap::Hash(const FString& Key) const
@@ -39,41 +24,34 @@ uint32 UHashMap::Hash(const FString& Key) const
 void UHashMap::Add(const FString& Key, USoundBase* Value)
 {
     uint32 Index = Hash(Key);
-    FHashMapEntry* Entry = Table[Index];
+    TArray<FHashMapEntry>& Chain = Table[Index];
 
-    if (!Entry)
+    // Check for existing key to update or append
+    for (FHashMapEntry& Entry : Chain)
     {
-        Table[Index] = new FHashMapEntry(Key, Value); // Allocate new entry
-        Size++;
-        return;
-    }
-
-    while (Entry)
-    {
-        if (Entry->Key == Key)
+        if (Entry.Key == Key)
         {
-            Entry->Value = Value; // Update value, weak ptr handles reference
+            Entry.Value = Value; // Update existing value
             return;
         }
-        if (!Entry->Next) break;
-        Entry = Entry->Next;
     }
-    Entry->Next = new FHashMapEntry(Key, Value); // Allocate new entry for chaining
+
+    // Add new entry
+    Chain.Add(FHashMapEntry(Key, Value));
     Size++;
 }
 
 USoundBase* UHashMap::Get(const FString& Key)
 {
     uint32 Index = Hash(Key);
-    FHashMapEntry* Entry = Table[Index];
+    const TArray<FHashMapEntry>& Chain = Table[Index];
 
-    while (Entry)
+    for (const FHashMapEntry& Entry : Chain)
     {
-        if (Entry->Key == Key)
+        if (Entry.Key == Key)
         {
-            return Entry->Value.Get(); // Return raw pointer from weak ptr
+            return Entry.Value.Get(); // Return raw pointer from weak ptr
         }
-        Entry = Entry->Next;
     }
     return nullptr;
 }
@@ -81,20 +59,15 @@ USoundBase* UHashMap::Get(const FString& Key)
 void UHashMap::Remove(const FString& Key)
 {
     uint32 Index = Hash(Key);
-    FHashMapEntry* Entry = Table[Index];
-    FHashMapEntry* Prev = nullptr;
+    TArray<FHashMapEntry>& Chain = Table[Index];
 
-    while (Entry)
+    for (int32 i = 0; i < Chain.Num(); ++i)
     {
-        if (Entry->Key == Key)
+        if (Chain[i].Key == Key)
         {
-            if (Prev) Prev->Next = Entry->Next;
-            else Table[Index] = Entry->Next;
-            delete Entry;
+            Chain.RemoveAt(i);
             Size--;
             return;
         }
-        Prev = Entry;
-        Entry = Entry->Next;
     }
 }

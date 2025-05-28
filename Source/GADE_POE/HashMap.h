@@ -9,11 +9,11 @@ struct FHashMapEntry
 {
     FString Key;
     TWeakObjectPtr<USoundBase> Value; // Use weak pointer for UObjects
-    FHashMapEntry* Next;
 
-    FHashMapEntry() : Next(nullptr) {}
-    FHashMapEntry(const FString& K, USoundBase* V) : Key(K), Value(V), Next(nullptr) {}
+    FHashMapEntry() {}
+    FHashMapEntry(const FString& K, USoundBase* V) : Key(K), Value(V) {}
 };
+
 UCLASS()
 class GADE_POE_API UHashMap : public UObject
 {
@@ -29,10 +29,9 @@ public:
     int32 GetSize() const { return Size; }
 
 private:
-    TArray<FHashMapEntry*> Table; // ? Array of pointers to entries
+    TArray<TArray<FHashMapEntry>> Table; // 2D array for chaining
     int32 Size;
     static const int32 TableSize = 16;
 
     uint32 Hash(const FString& Key) const;
 };
-
