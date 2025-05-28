@@ -32,6 +32,9 @@ public:
     UFUNCTION(BlueprintCallable)
     TArray<AActor*> GetNeighbors(AActor* Waypoint);
 
+    UFUNCTION(BlueprintCallable)
+    TArray<AActor*> GetAllKeys( TArray<AActor*>& OutWaypoints);
+
 private:
     TempHashMap<AActor*, FGraphNode> Nodes;
 };

@@ -39,25 +39,26 @@ public:
     virtual void Tick(float DeltaTime) override;
 
     UFUNCTION(BlueprintCallable, Category = "Leaderboard")
-    void RegisterRacer(AActor* Racer); // Register the racer with the game state
+    void RegisterRacer(AActor* Racer);
 
     UFUNCTION(BlueprintCallable, Category = "Leaderboard")
-    void UpdateRacerProgress(AActor* Racer, int32 Lap, int32 WaypointIndex); // Update the racer's progress
+    void UpdateRacerProgress(AActor* Racer, int32 Lap, int32 WaypointIndex);
 
     UFUNCTION(BlueprintCallable, Category = "Leaderboard")
-    TArray<FRacerLeaderboardEntry> GetLeaderboard() const; // Get the leaderboard
+    TArray<FRacerLeaderboardEntry> GetLeaderboard() const;
 
     UPROPERTY(BlueprintReadOnly, Category = "Leaderboard")
-    TArray<FRacerLeaderboardEntry> Leaderboard; // Leaderboard
+    TArray<FRacerLeaderboardEntry> Leaderboard;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 TotalLaps; // Total number of laps
+    int32 TotalLaps;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 TotalWaypoints; // Total number of waypoints
+    int32 TotalWaypoints;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    bool bRaceFinished; // Whether the race has finished
+    bool bRaceFinished;
+
 private:
-    void UpdateLeaderboard(); // Update the leaderboard
+    void UpdateLeaderboard();
 };

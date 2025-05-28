@@ -1,10 +1,12 @@
+// BeginnerRaceGameState.cpp
 #include "BiginnerRaceGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "WaypointManager.h"
+#include "AdvancedRaceManager.h"
 
 ABeginnerRaceGameState::ABeginnerRaceGameState()
 {
-    TotalLaps = 2; // Set to desired number of laps
+    TotalLaps = 2;
     TotalWaypoints = 0;
     bRaceFinished = false;
 }
@@ -13,16 +15,29 @@ void ABeginnerRaceGameState::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Get total waypoints from WaypointManager
-    AWaypointManager* WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
+    AAdvancedRaceManager* AdvancedManager = Cast<AAdvancedRaceManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), AAdvancedRaceManager::StaticClass()));
+    if (AdvancedManager)
+    {
+        AdvancedManager->CollectWaypoints(); // Ensure waypoints are collected
+        if (AdvancedManager->Waypoints.Num() > 0)
+        {
+            TotalWaypoints = AdvancedManager->Waypoints.Num();
+            UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Total waypoints set to %d from AdvancedRaceManager"), TotalWaypoints);
+            return;
+        }
+    }
+
+    AWaypointManager* WaypointManager = Cast<AWaypointManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
     if (WaypointManager && WaypointManager->Waypoints.Num() > 0)
     {
-		TotalWaypoints = WaypointManager->Waypoints.Num(); // Get the number of waypoints from the WaypointManager
-        UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: TotalWaypoints set to %d"), TotalWaypoints);
+        TotalWaypoints = WaypointManager->Waypoints.Num();
+        UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Total waypoints set to %d from WaypointManager"), TotalWaypoints);
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("BeginnerRaceGameState: WaypointManager not found or no waypoints!")); 
+        UE_LOG(LogTemp, Error, TEXT("BeginnerRaceGameState: No waypoint source found! Ensure AdvancedRaceManager with waypoints in Advanced Race or WaypointManager in Beginner Race."));
     }
 }
 
@@ -32,7 +47,6 @@ void ABeginnerRaceGameState::Tick(float DeltaTime)
 
     UpdateLeaderboard();
 
-    // Check if all racers have finished
     bool bAllFinished = true;
     for (const FRacerLeaderboardEntry& Entry : Leaderboard)
     {
@@ -42,20 +56,19 @@ void ABeginnerRaceGameState::Tick(float DeltaTime)
             break;
         }
     }
-    if (bAllFinished && !bRaceFinished) // Only set bRaceFinished once all racers have finished
+    if (bAllFinished && !bRaceFinished)
     {
         bRaceFinished = true;
         UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Race finished!"));
     }
 }
 
-void ABeginnerRaceGameState::RegisterRacer(AActor* Racer) // Register the racer with the game state 
+void ABeginnerRaceGameState::RegisterRacer(AActor* Racer)
 {
     if (!Racer) return;
 
-    // Add the racer to the leaderboard 
     FRacerLeaderboardEntry Entry;
-    Entry.Racer = Racer; 
+    Entry.Racer = Racer;
     Entry.RacerName = Racer->GetName();
     Entry.Lap = 0;
     Entry.WaypointIndex = 0;
@@ -67,9 +80,8 @@ void ABeginnerRaceGameState::RegisterRacer(AActor* Racer) // Register the racer 
 
 void ABeginnerRaceGameState::UpdateRacerProgress(AActor* Racer, int32 Lap, int32 WaypointIndex)
 {
-    for (FRacerLeaderboardEntry& Entry : Leaderboard) // Loop through the leaderboard
+    for (FRacerLeaderboardEntry& Entry : Leaderboard)
     {
-        // Update the racer's progress 
         if (Entry.Racer == Racer)
         {
             Entry.Lap = Lap;
@@ -78,17 +90,16 @@ void ABeginnerRaceGameState::UpdateRacerProgress(AActor* Racer, int32 Lap, int32
             break;
         }
     }
-    UpdateLeaderboard(); // Update the leaderboard
+    UpdateLeaderboard();
 }
 
 TArray<FRacerLeaderboardEntry> ABeginnerRaceGameState::GetLeaderboard() const
 {
-	return Leaderboard; // Return the leaderboard
+    return Leaderboard;
 }
 
-void ABeginnerRaceGameState::UpdateLeaderboard() // Update the leaderboard based on lap and waypoint index
+void ABeginnerRaceGameState::UpdateLeaderboard()
 {
-	// Sort the leaderboard based on lap and waypoint index (this is what allows me to see if a character has completed a lap to correctly update positions)
     Leaderboard.Sort([](const FRacerLeaderboardEntry& A, const FRacerLeaderboardEntry& B) {
         if (A.Lap != B.Lap)
         {

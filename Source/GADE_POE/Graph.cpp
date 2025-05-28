@@ -42,3 +42,11 @@ TArray<AActor*> AGraph::GetNeighbors(AActor* Waypoint)
     }
     return Result;
 }
+
+TArray<AActor*> AGraph::GetAllKeys(TArray<AActor*>& OutWaypoints)
+{
+   TArray<AActor*> Result;
+    OutWaypoints = Result;
+    Nodes.GetAllKeys(Result);
+    return Result;
+}

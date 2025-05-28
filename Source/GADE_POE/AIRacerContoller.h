@@ -1,44 +1,65 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "AIRacer.h"
+#include "Kismet/GameplayStatics.h"
+#include "WaypointManager.h"
+#include "CustomLinkedList.h"
+#include "Graph.h"
+#include "NavigationSystem.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "BiginnerRaceGameState.h"
+#include "AdvancedRaceManager.h"
 #include "AIRacerContoller.generated.h"
+
 
 class AWaypointManager;
 class UCustomLinkedList;
+class AGraph;
 class AActor;
 class ABeginnerRaceGameState;
 
 UCLASS()
-class GADE_POE_API AAIRacerContoller : public AAIController // Inherit from AAIController (please ignore bad spelling I was tired)
+class GADE_POE_API AAIRacerContoller : public AAIController
 {
     GENERATED_BODY()
 
 public:
     AAIRacerContoller();
 
-    virtual void BeginPlay() override; 
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
-    void OnWaypointReached(AActor* ReachedWaypoint); // Triggered when a waypoint is reached
+    void OnWaypointReached(AActor* ReachedWaypoint);
+
+    UFUNCTION(BlueprintCallable)
+    void InitializeGraph(AGraph* InGraph);
 
 protected:
     UPROPERTY()
-    AWaypointManager* WaypointManager; // Reference to the WaypointManager
+    AWaypointManager* WaypointManager;
 
     UPROPERTY()
-    UCustomLinkedList* LinkedList; // Reference to the LinkedList
+    UCustomLinkedList* LinkedList;
 
     UPROPERTY()
-	AActor* CurrentWaypoint; // Current waypoint actor
+    AGraph* Graph;
 
     UPROPERTY()
-	ABeginnerRaceGameState* GameState; // Reference to the game state
+    AAdvancedRaceManager* AdvancedRaceManager;
 
-    FTimerHandle InitialMoveTimerHandle; // Timer handle
+    UPROPERTY()
+    AActor* CurrentWaypoint;
 
-	bool bInitialized; // Flag to check if the AI has been initialized
+    UPROPERTY()
+    ABeginnerRaceGameState* GameState;
 
-    void DelayedMoveToCurrentWaypoint(); // Delayed movement to the current waypoint
+    FTimerHandle InitialMoveTimerHandle;
 
-	void MoveToCurrentWaypoint(); // Move to the current waypoint
+    bool bInitialized;
+
+    UPROPERTY(EditAnywhere, Category = "Navigation")
+    bool bUseGraphNavigation;
+
+    void DelayedMoveToCurrentWaypoint();
+    void MoveToCurrentWaypoint();
 };

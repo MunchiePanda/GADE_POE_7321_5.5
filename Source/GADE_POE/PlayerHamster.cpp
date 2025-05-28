@@ -12,11 +12,13 @@
 #include "BeginnerRaceHUD.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SphereComponent.h"
+#include "SFXManager.h" // Include SFXManager
 
 APlayerHamster::APlayerHamster()
 {
     // Set this character to call Tick() every frame
     PrimaryActorTick.bCanEverTick = true;
+
 
     /*Set all the default values*/
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -42,6 +44,8 @@ APlayerHamster::APlayerHamster()
     CurrentLap = 0;
     CurrentWaypointIndex = 0;
     bIsPlayer = true;
+
+    //SFXManager = CreateDefaultSubobject<USFXManager>(TEXT("SFXManager"));
 }
 
 void APlayerHamster::BeginPlay()
@@ -219,6 +223,27 @@ void APlayerHamster::Tick(float DeltaTime)
             UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: CurrentWaypoint at index %d is null"), CurrentWaypointIndex);
         }
     }
+
+    // Play engine sound when moving
+    if (CurrentSpeed > 0.0f && SFXManager)
+    {
+        SFXManager->PlaySound("engine");
+    }
+
+    // Check for collisions with AI racers
+    TArray<AActor*> OverlappingActors;
+    GetCapsuleComponent()->GetOverlappingActors(OverlappingActors, ACharacter::StaticClass());
+    for (AActor* Actor : OverlappingActors)
+    {
+        if (Actor != this && Actor->GetName().Contains("Racer"))
+        {
+            if (SFXManager)
+            {
+                SFXManager->PlaySound("crash");
+                UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Collided with AI racer: %s"), *Actor->GetName());
+            }
+        }
+    }
 }
 
 void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -331,19 +356,26 @@ void APlayerHamster::RegisterWithGameState() // Register the racer with the game
 
 void APlayerHamster::OnWaypointReached(AActor* Waypoint) // Triggered when a waypoint is reached 
 {
-    CurrentWaypointIndex++; // Increment the current waypoint index
+    if (SFXManager)
+    {
+        SFXManager->PlaySound("waypoint"); // Play waypoint sound
+    }
+    CurrentWaypointIndex++;
     UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Reached waypoint index %d"), CurrentWaypointIndex);
 
-    // Check if a lap is completed 
     if (GameState && CurrentWaypointIndex >= GameState->TotalWaypoints)
     {
         CurrentLap++;
         CurrentWaypointIndex = 0;
+        if (SFXManager)
+        {
+            SFXManager->PlaySound("lap"); // Play lap completion sound
+        }
         UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
     }
 
-    if (GameState) // Update the game state
+    if (GameState)
     {
-        GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex); // Call the UpdateRacerProgress function in the game state
+        GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
     }
 }

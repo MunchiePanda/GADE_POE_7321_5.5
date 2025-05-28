@@ -6,6 +6,7 @@
 #include "PauseMenu_WB.h"
 #include "BiginnerRaceGameState.h"
 #include "BeginnerRaceHUD.h"
+#include "SFXManager.h" // Include SFXManager
 #include "PlayerHamster.generated.h"
 
 // Forward declarations
@@ -15,6 +16,7 @@ class UCameraComponent;
 class USplineComponent;
 class AWaypointManager;
 class ABeginnerRaceGameState;
+class SFXManager;
 
 UCLASS()
 class GADE_POE_API APlayerHamster : public ACharacter
@@ -119,4 +121,7 @@ private:
 
     void RegisterWithGameState(); // Register with game state 
     void OnWaypointReached(AActor* Waypoint); // Called when a waypoint is reached
+
+    UPROPERTY(VisibleAnywhere, Category = "Audio")
+    USFXManager* SFXManager; // Add SFXManager as a component
 };

@@ -1,21 +1,26 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// AdvancedRaceManager.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Graph.h"
 #include "Waypoint.h"
+#include "BiginnerRaceGameState.h"
 #include "AdvancedRaceManager.generated.h"
+
+class ABeginnerRaceGameState;
+class AWaypoint;
+class AGraph;
+class AActor;
 
 UCLASS()
 class GADE_POE_API AAdvancedRaceManager : public AActor
 {
-	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
-	AAdvancedRaceManager();
+    GENERATED_BODY()
+
+public:
+    AAdvancedRaceManager();
+
     UFUNCTION(BlueprintCallable)
     void InitializeTrack(AActor* RaceTrackActor, AGraph* InGraph);
 
@@ -25,6 +30,18 @@ public:
     UFUNCTION(BlueprintCallable)
     void PopulateGraph();
 
+    UFUNCTION(BlueprintCallable, Category = "Waypoints")
+    AWaypoint* GetWaypoint(int32 Index);
+
+    UFUNCTION(BlueprintCallable, Category = "Waypoints")
+    AGraph* GetGraph() const { return Graph; }
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Waypoint")
+    TSubclassOf<class AWaypoint> WaypointClass;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Waypoint")
+    TArray<AWaypoint*> Waypoints;
+
 protected:
     virtual void BeginPlay() override;
 
@@ -33,12 +50,8 @@ private:
     AGraph* Graph;
 
     UPROPERTY()
-    AActor* RaceTrack; // Static mesh actor
+    AActor* RaceTrack;
 
-    UPROPERTY(EditAnywhere, Category = "Waypoint")
-    TSubclassOf<AWaypoint> WaypointClass;
-
-    UPROPERTY(EditAnywhere, Category = "Waypoint")
-    TArray<AWaypoint*> Waypoints; // Manual or programmatic waypoints
-
+    UPROPERTY()
+    ABeginnerRaceGameState* GameState;
 };
