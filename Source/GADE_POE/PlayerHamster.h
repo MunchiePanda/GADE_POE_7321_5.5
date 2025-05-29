@@ -69,6 +69,7 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Race")
     bool bIsPlayer = true;
 
+    float CurrentSpeed = 0.0f;
 private:
     UPROPERTY(VisibleAnywhere, Category = "Components")
     UStaticMeshComponent* HamsterMesh; // Visual mesh
@@ -111,7 +112,7 @@ private:
 
     bool bIsPaused = false;
     bool bEndUIShown = false;
-    float CurrentSpeed = 0.0f;
+    
 
     UPROPERTY()
     AWaypointManager* WaypointManager; // Keep for compatibility with other levels
