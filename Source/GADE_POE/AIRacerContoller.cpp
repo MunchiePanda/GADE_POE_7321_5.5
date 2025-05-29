@@ -1,4 +1,3 @@
-// AIRacerContoller.cpp
 #include "AIRacerContoller.h"
 #include "Kismet/GameplayStatics.h"
 #include "WaypointManager.h"
@@ -115,6 +114,27 @@ void AAIRacerContoller::Tick(float DeltaTime)
         UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Pawn possessed, initializing navigation."), *GetName());
         GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
     }
+
+    AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
+    if (Racer && CurrentWaypoint)
+    {
+        FVector Direction = (CurrentWaypoint->GetActorLocation() - Racer->GetActorLocation()).GetSafeNormal();
+        Racer->AddMovementInput(Direction, Racer->MaxSpeed * DeltaTime);
+
+        // Apply physics force to the physics body
+        FVector Force = Direction * Racer->MaxAcceleration;
+        Racer->PhysicsBody->AddForce(Force);
+
+        // Apply a downward force to keep it grounded
+        Racer->PhysicsBody->AddForce(FVector(0, 0, -980.0f)); // Approximate gravity force
+
+        // Check proximity to waypoint
+        float Distance = FVector::Dist(Racer->GetActorLocation(), CurrentWaypoint->GetActorLocation());
+        if (Distance < 200.0f)
+        {
+            OnWaypointReached(CurrentWaypoint);
+        }
+    }
 }
 
 void AAIRacerContoller::DelayedMoveToCurrentWaypoint()
@@ -195,8 +215,7 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
         }
         else
         {
-            // Fallback: Instead of resetting to first waypoint, loop back to a previous waypoint with neighbors
-            CurrentWaypoint = AdvancedRaceManager->Waypoints[4]; // E (index 4) as a fallback, since it leads to F
+            CurrentWaypoint = AdvancedRaceManager->Waypoints[4]; // Fallback to waypoint 4 (E)
             int32 FallbackIndex = 4;
             UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: No neighbors for %s (index %d), falling back to waypoint %s (index %d)"),
                 *GetName(), *ReachedWaypoint->GetName(), ReachedIndex, *CurrentWaypoint->GetName(), FallbackIndex);
@@ -219,68 +238,5 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
     {
         UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: CurrentWaypoint is null."), *GetName());
         return;
-    }
-
-    APawn* ControlledPawn = GetPawn();
-    if (!ControlledPawn)
-    {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: ControlledPawn is null."), *GetName());
-        return;
-    }
-
-    UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
-    if (!NavSys)
-    {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: Navigation system not found!"), *GetName());
-        return;
-    }
-
-    FVector RacerLocation = ControlledPawn->GetActorLocation();
-    FNavLocation NavLocation;
-    bool bIsOnNavMesh = NavSys->ProjectPointToNavigation(RacerLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
-    if (bIsOnNavMesh)
-    {
-        ControlledPawn->SetActorLocation(NavLocation.Location);
-        RacerLocation = NavLocation.Location;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Racer at %s is not on NavMesh"), *GetName(), *RacerLocation.ToString());
-        return;
-    }
-
-    FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
-    bIsOnNavMesh = NavSys->ProjectPointToNavigation(WaypointLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
-    if (bIsOnNavMesh)
-    {
-        WaypointLocation = NavLocation.Location;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Waypoint at %s is not on NavMesh"), *GetName(), *WaypointLocation.ToString());
-        return;
-    }
-
-    int32 CurrentIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(CurrentWaypoint));
-    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moving to waypoint %s (index %d) at location %s"),
-        *GetName(), *CurrentWaypoint->GetName(), CurrentIndex, *WaypointLocation.ToString());
-
-    EPathFollowingRequestResult::Type Result = MoveToActor(CurrentWaypoint, 200.0f);
-
-    switch (Result)
-    {
-    case EPathFollowingRequestResult::Failed:
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: MoveToActor failed for waypoint %s (index %d)"),
-            *GetName(), *CurrentWaypoint->GetName(), CurrentIndex);
-        break;
-    case EPathFollowingRequestResult::AlreadyAtGoal:
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Already at waypoint %s (index %d)"),
-            *GetName(), *CurrentWaypoint->GetName(), CurrentIndex);
-        OnWaypointReached(CurrentWaypoint);
-        break;
-    case EPathFollowingRequestResult::RequestSuccessful:
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: MoveToActor successful for waypoint %s (index %d)"),
-            *GetName(), *CurrentWaypoint->GetName(), CurrentIndex);
-        break;
     }
 }

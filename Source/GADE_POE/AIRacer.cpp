@@ -3,15 +3,16 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "RacerTypes.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "AIRacerContoller.h"
 #include "Kismet/GameplayStatics.h"
 #include "BiginnerRaceGameState.h"
 
-AAIRacer::AAIRacer() // Constructor
+AAIRacer::AAIRacer()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Configure the capsule component (already the root component from ACharacter)
+    // Configure the capsule component
     UCapsuleComponent* Capsule = GetCapsuleComponent();
     if (Capsule)
     {
@@ -24,20 +25,34 @@ AAIRacer::AAIRacer() // Constructor
         Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
     }
 
-    // Set up the skeletal mesh as a child of the capsule
+    // Set up the skeletal mesh for visuals (no collision)
     RacerMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RacerMesh"));
     RacerMesh->SetupAttachment(RootComponent);
     RacerMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
-    // Configure the character movement component
+    // Set up the physics body for collisions
+    PhysicsBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsBody"));
+    PhysicsBody->SetupAttachment(RootComponent);
+    PhysicsBody->SetSimulatePhysics(true);
+    PhysicsBody->SetEnableGravity(true);
+    PhysicsBody->SetConstraintMode(EDOFMode::Default);
+    PhysicsBody->SetAngularDamping(5.0f); // Reduce unwanted rotations
+    PhysicsBody->SetLinearDamping(0.5f);
+    PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
+    PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+    PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+
+    // Configure the character movement component for physics interaction
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {
-        Movement->bOrientRotationToMovement = true;
+        Movement->bOrientRotationToMovement = false; // Allow physics to handle rotation
         Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
         Movement->bUseControllerDesiredRotation = false;
         Movement->NavAgentProps.bCanWalk = true;
         Movement->bCanWalkOffLedges = false;
+        Movement->SetMovementMode(MOVE_Flying); // Use flying to allow physics body to interact with environment
+        Movement->GravityScale = 0.0f; // Let physics handle gravity
     }
 
     // Set the AI controller class
@@ -88,7 +103,7 @@ void AAIRacer::SetupRacerAttributes()
 
     // Update movement component attributes
     UCharacterMovementComponent* Movement = GetCharacterMovement();
-    if (Movement) // Check if the movement component is valid
+    if (Movement)
     {
         Movement->MaxWalkSpeed = MaxSpeed;
         Movement->MaxAcceleration = MaxAcceleration;

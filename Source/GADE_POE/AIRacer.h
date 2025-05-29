@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "RacerTypes.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h" // Added for physics body
 #include "AIRacer.generated.h"
 
 class AAIRacerContoller; // Forward declaration
@@ -18,7 +19,10 @@ public:
     AAIRacer();
     // Sets default values for this character's properties
     UPROPERTY(VisibleAnywhere, Category = "Mesh")
-    USkeletalMeshComponent* RacerMesh; // Reference to the skeletal mesh component
+    USkeletalMeshComponent* RacerMesh; // Visual mesh
+
+    UPROPERTY(VisibleAnywhere, Category = "Physics")
+    UStaticMeshComponent* PhysicsBody; // Physics-enabled body for collisions
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
     int32 LapCount = 0; // Number of laps completed
@@ -30,12 +34,12 @@ public:
     ERacerType RacerType; // Type of racer
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-	float MaxSpeed; // Maximum speed of the racer
+    float MaxSpeed; // Maximum speed of the racer
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-	float MaxAcceleration; // Maximum acceleration of the racer
+    float MaxAcceleration; // Maximum acceleration of the racer
 
-	void SetupRacerAttributes(); // Set up racer attributes based on type of racer
+    void SetupRacerAttributes(); // Set up racer attributes based on type of racer
 
 protected:
     virtual void BeginPlay() override;
@@ -43,4 +47,7 @@ protected:
 private:
     UPROPERTY()
     ABeginnerRaceGameState* GameState; // Reference to the game state
+
+    UPROPERTY()
+    float CurrentSpeed = 0.0f; // Track current speed for physics
 };

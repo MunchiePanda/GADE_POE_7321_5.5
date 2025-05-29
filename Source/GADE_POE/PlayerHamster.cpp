@@ -20,15 +20,35 @@ APlayerHamster::APlayerHamster()
 {
     PrimaryActorTick.bCanEverTick = true;
 
+    // Configure the capsule component
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 
+    // Set up the visual mesh
     HamsterMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HamsterMesh"));
     HamsterMesh->SetupAttachment(GetCapsuleComponent());
+    HamsterMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
+    // Set up the physics body
+    PhysicsBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsBody"));
+    PhysicsBody->SetupAttachment(GetCapsuleComponent());
+    PhysicsBody->SetSimulatePhysics(true);
+    PhysicsBody->SetEnableGravity(true);
+    PhysicsBody->SetConstraintMode(EDOFMode::Default);
+    PhysicsBody->SetAngularDamping(5.0f); // Reduce unwanted rotations
+    PhysicsBody->SetLinearDamping(0.5f);
+    PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
+    PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+    PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+
+    // Configure the character movement component
     GetCharacterMovement()->MaxWalkSpeed = 600.f;
-    GetCharacterMovement()->GravityScale = 2.0f;
-    GetCharacterMovement()->bOrientRotationToMovement = true;
+    GetCharacterMovement()->GravityScale = 0.0f; // Let physics handle gravity
+    GetCharacterMovement()->bOrientRotationToMovement = false; // Allow physics to handle rotation
     GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
+    GetCharacterMovement()->SetMovementMode(MOVE_Flying); // Use flying mode to let physics body interact with environment
 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(GetCapsuleComponent());
@@ -258,7 +278,7 @@ void APlayerHamster::Tick(float DeltaTime)
     }
 
     TArray<AActor*> OverlappingActors;
-    GetCapsuleComponent()->GetOverlappingActors(OverlappingActors, ACharacter::StaticClass());
+    PhysicsBody->GetOverlappingActors(OverlappingActors, ACharacter::StaticClass());
     for (AActor* Actor : OverlappingActors)
     {
         if (Actor != this && Actor->GetName().Contains("Racer"))
@@ -269,6 +289,13 @@ void APlayerHamster::Tick(float DeltaTime)
                 UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Collided with AI racer: %s"), *Actor->GetName());
             }
         }
+    }
+
+    // Apply physics force to the physics body
+    if (MoveDirection.SizeSquared() > 0.0f)
+    {
+        FVector Force = MoveDirection * CurrentSpeed;
+        PhysicsBody->AddForce(Force);
     }
 }
 
@@ -289,13 +316,20 @@ void APlayerHamster::MoveForward(float Value)
     if (Value > 0.0f)
     {
         CurrentSpeed = FMath::Clamp(CurrentSpeed + (AccelerationRate * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
+        MoveDirection = GetActorForwardVector();
+    }
+    else if (Value < 0.0f)
+    {
+        CurrentSpeed = FMath::Clamp(CurrentSpeed - (DecelerationRate * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
+        MoveDirection = -GetActorForwardVector();
     }
     else
     {
         CurrentSpeed = FMath::Clamp(CurrentSpeed - (DecelerationRate * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
+        MoveDirection = FVector::ZeroVector;
     }
 
-    AddMovementInput(GetActorForwardVector(), CurrentSpeed * GetWorld()->GetDeltaSeconds());
+    AddMovementInput(MoveDirection, CurrentSpeed * GetWorld()->GetDeltaSeconds());
 }
 
 void APlayerHamster::MoveRight(float Value)
@@ -303,6 +337,7 @@ void APlayerHamster::MoveRight(float Value)
     if (Value != 0.0f)
     {
         AddControllerYawInput(Value * TurnSpeed * GetWorld()->GetDeltaSeconds());
+        PhysicsBody->SetPhysicsAngularVelocityInDegrees(FVector(0, Value * TurnSpeed, 0)); // Apply angular velocity for turning
     }
 }
 
@@ -311,6 +346,7 @@ void APlayerHamster::Brake(float Value)
     if (Value > 0.0f)
     {
         CurrentSpeed = FMath::Clamp(CurrentSpeed - (BrakeForce * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
+        MoveDirection = FVector::ZeroVector;
     }
 }
 

@@ -7,9 +7,9 @@
 #include "BiginnerRaceGameState.h"
 #include "BeginnerRaceHUD.h"
 #include "SFXManager.h"
-#include "AdvancedRaceManager.h" // Add this include for AdvancedRaceManager
-#include "Graph.h" // Add this for AGraph access
-#include "WaypointManager.h" // Keep this for compatibility with other levels
+#include "AdvancedRaceManager.h"
+#include "Graph.h"
+#include "WaypointManager.h"
 #include "PlayerHamster.generated.h"
 
 class UStaticMeshComponent;
@@ -71,7 +71,10 @@ public:
 
 private:
     UPROPERTY(VisibleAnywhere, Category = "Components")
-    UStaticMeshComponent* HamsterMesh;
+    UStaticMeshComponent* HamsterMesh; // Visual mesh
+
+    UPROPERTY(VisibleAnywhere, Category = "Physics")
+    UStaticMeshComponent* PhysicsBody; // Physics-enabled body for collisions
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
     float TurnSpeed = 100.0f;
@@ -126,6 +129,8 @@ private:
 
     UPROPERTY()
     AActor* CurrentWaypoint; // Used for graph navigation
+
+    FVector MoveDirection = FVector::ZeroVector;
 
     void RegisterWithGameState();
     void OnWaypointReached(AActor* Waypoint);
