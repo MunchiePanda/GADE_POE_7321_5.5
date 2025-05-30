@@ -2,37 +2,47 @@
 #include "PlayerHamster.h"
 #include "AIRacer.h"
 #include "AIRacerContoller.h"
+#include "Kismet/GameplayStatics.h"
 
 void ASpeedReductionPickup::ApplyEffect(AActor* Racer)
 {
+    AffectedPlayer = nullptr;
+    AffectedAIRacer = nullptr;
+    OriginalSpeed = 0.0f;
+
     if (APlayerHamster* Player = Cast<APlayerHamster>(Racer))
     {
-        OriginalSpeed = Player->CurrentSpeed; // Initialize OriginalSpeed
+        OriginalSpeed = Player->CurrentSpeed;
         Player->CurrentSpeed *= SpeedMultiplier;
-        GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ASpeedReductionPickup::ResetPlayerSpeed, EffectDuration, false);
+        AffectedPlayer = Player;
+        UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reduced Player speed from %f to %f"), OriginalSpeed, Player->CurrentSpeed);
     }
     else if (AAIRacer* AIRacer = Cast<AAIRacer>(Racer))
     {
-        OriginalSpeed = AIRacer->MaxSpeed; // Initialize OriginalSpeed
+        OriginalSpeed = AIRacer->MaxSpeed;
         AIRacer->MaxSpeed *= SpeedMultiplier;
-        LastAIRacer = AIRacer; // Track the affected AI racer
-        GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ASpeedReductionPickup::ResetAISpeed, EffectDuration, false);
+        AffectedAIRacer = AIRacer;
+        UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reduced AI speed from %f to %f"), OriginalSpeed, AIRacer->MaxSpeed);
+    }
+
+    if (AffectedPlayer || AffectedAIRacer)
+    {
+        GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ASpeedReductionPickup::ResetSpeed, EffectDuration, false);
     }
 }
 
-void ASpeedReductionPickup::ResetPlayerSpeed()
+void ASpeedReductionPickup::ResetSpeed()
 {
-    if (APlayerHamster* Player = Cast<APlayerHamster>(GetWorld()->GetFirstPlayerController()->GetPawn()))
+    if (AffectedPlayer)
     {
-        Player->CurrentSpeed = OriginalSpeed;
+        AffectedPlayer->CurrentSpeed = OriginalSpeed;
+        UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reset Player speed to %f"), OriginalSpeed);
+        AffectedPlayer = nullptr;
     }
-}
-
-void ASpeedReductionPickup::ResetAISpeed()
-{
-    if (LastAIRacer)
+    else if (AffectedAIRacer)
     {
-        LastAIRacer->MaxSpeed = OriginalSpeed;
-        LastAIRacer = nullptr; // Clear the reference after reset
+        AffectedAIRacer->MaxSpeed = OriginalSpeed;
+        UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reset AI speed to %f"), OriginalSpeed);
+        AffectedAIRacer = nullptr;
     }
 }
