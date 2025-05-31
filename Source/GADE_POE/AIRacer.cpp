@@ -12,7 +12,6 @@ AAIRacer::AAIRacer()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Configure the capsule component
     UCapsuleComponent* Capsule = GetCapsuleComponent();
     if (Capsule)
     {
@@ -25,41 +24,36 @@ AAIRacer::AAIRacer()
         Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
     }
 
-    // Set up the skeletal mesh for visuals (no collision)
     RacerMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RacerMesh"));
     RacerMesh->SetupAttachment(RootComponent);
     RacerMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
-    // Set up the physics body for collisions
     PhysicsBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsBody"));
     PhysicsBody->SetupAttachment(RootComponent);
     PhysicsBody->SetSimulatePhysics(true);
     PhysicsBody->SetEnableGravity(true);
     PhysicsBody->SetConstraintMode(EDOFMode::Default);
-    PhysicsBody->SetAngularDamping(5.0f); // Reduce unwanted rotations
+    PhysicsBody->SetAngularDamping(5.0f);
     PhysicsBody->SetLinearDamping(0.5f);
     PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
     PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
     PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 
-    // Configure the character movement component for physics interaction
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {
-        Movement->bOrientRotationToMovement = false; // Allow physics to handle rotation
+        Movement->bOrientRotationToMovement = false;
         Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
         Movement->bUseControllerDesiredRotation = false;
         Movement->NavAgentProps.bCanWalk = true;
         Movement->bCanWalkOffLedges = false;
-        Movement->SetMovementMode(MOVE_Flying); // Use flying to allow physics body to interact with environment
-        Movement->GravityScale = 0.0f; // Let physics handle gravity
+        Movement->SetMovementMode(MOVE_Flying);
+        Movement->GravityScale = 0.0f;
     }
 
-    // Set the AI controller class
     AIControllerClass = AAIRacerContoller::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-    // Default attributes
     RacerType = ERacerType::Medium;
     MaxSpeed = 600.0f;
     MaxAcceleration = 500.0f;
@@ -70,7 +64,6 @@ void AAIRacer::BeginPlay()
     Super::BeginPlay();
     SetupRacerAttributes();
 
-    // Register with GameState
     GameState = Cast<ABeginnerRaceGameState>(GetWorld()->GetGameState());
     if (GameState)
     {
@@ -84,7 +77,6 @@ void AAIRacer::BeginPlay()
 
 void AAIRacer::SetupRacerAttributes()
 {
-    // Calculate attributes based on RacerType
     switch (RacerType)
     {
     case ERacerType::Fast:
@@ -101,7 +93,6 @@ void AAIRacer::SetupRacerAttributes()
         break;
     }
 
-    // Update movement component attributes
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {

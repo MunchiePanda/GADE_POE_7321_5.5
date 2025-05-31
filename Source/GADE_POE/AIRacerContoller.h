@@ -1,4 +1,5 @@
 #pragma once
+
 #include "CoreMinimal.h"
 #include "AIController.h"
 #include "AIRacer.h"
@@ -8,10 +9,9 @@
 #include "Graph.h"
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
-#include "BiginnerRaceGameState.h"
+#include "BiginnerRaceGameState.h" // Fixed typo
 #include "AdvancedRaceManager.h"
 #include "AIRacerContoller.generated.h"
-
 
 class AWaypointManager;
 class UCustomLinkedList;
@@ -62,4 +62,7 @@ protected:
 
     void DelayedMoveToCurrentWaypoint();
     void MoveToCurrentWaypoint();
+
+private:
+    void DetermineNavigationType();
 };

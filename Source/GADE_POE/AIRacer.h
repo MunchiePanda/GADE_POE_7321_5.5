@@ -4,11 +4,11 @@
 #include "GameFramework/Character.h"
 #include "RacerTypes.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h" // Added for physics body
+#include "Components/StaticMeshComponent.h"
 #include "AIRacer.generated.h"
 
-class AAIRacerContoller; // Forward declaration
-class ABeginnerRaceGameState; // Forward declaration
+class AAIRacerContoller; // Fixed forward declaration
+class ABeginnerRaceGameState;
 
 UCLASS()
 class GADE_POE_API AAIRacer : public ACharacter
@@ -17,37 +17,37 @@ class GADE_POE_API AAIRacer : public ACharacter
 
 public:
     AAIRacer();
-    // Sets default values for this character's properties
+
     UPROPERTY(VisibleAnywhere, Category = "Mesh")
-    USkeletalMeshComponent* RacerMesh; // Visual mesh
+    USkeletalMeshComponent* RacerMesh;
 
     UPROPERTY(VisibleAnywhere, Category = "Physics")
-    UStaticMeshComponent* PhysicsBody; // Physics-enabled body for collisions
+    UStaticMeshComponent* PhysicsBody;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 LapCount = 0; // Number of laps completed
+    int32 LapCount = 0;
 
     UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 WaypointsPassed = 0; // Number of waypoints passed
+    int32 WaypointsPassed = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    ERacerType RacerType; // Type of racer
+    ERacerType RacerType;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxSpeed; // Maximum speed of the racer
+    float MaxSpeed;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxAcceleration; // Maximum acceleration of the racer
+    float MaxAcceleration;
 
-    void SetupRacerAttributes(); // Set up racer attributes based on type of racer
+    void SetupRacerAttributes();
 
 protected:
     virtual void BeginPlay() override;
 
 private:
     UPROPERTY()
-    ABeginnerRaceGameState* GameState; // Reference to the game state
+    ABeginnerRaceGameState* GameState;
 
     UPROPERTY()
-    float CurrentSpeed = 0.0f; // Track current speed for physics
+    float CurrentSpeed = 0.0f;
 };

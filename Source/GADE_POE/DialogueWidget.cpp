@@ -51,6 +51,11 @@ void UDialogueWidget::NativeConstruct()
         JsonFile = "GADE_TEST.json";
         TargetRaceLevel = FName("CheckpointMap");
     }
+    else if (LevelName.Contains("AdvancedDialogueLVL"))
+    {
+        JsonFile = "AdvancedRaceDialogue.json";
+		TargetRaceLevel = FName("AdvancedMap");
+    }
     else
     {
         // Fallback to Game Instance if level name is unrecognized
@@ -69,6 +74,11 @@ void UDialogueWidget::NativeConstruct()
                 JsonFile = "GADE_TEST.json";
                 TargetRaceLevel = FName("CheckpointMap");
             }
+			else if (TargetRaceLevel == FName("AdvancedDialogueLVL"))
+			{
+				JsonFile = "AdvancedRaceDialogue.json";
+				TargetRaceLevel = FName("AdvancedMap");
+			}
             else
             {
                 UE_LOG(LogTemp, Error, TEXT("DialogueWidget: Invalid TargetRaceLevel %s from GameInstance, defaulting to GADE_TEST.json"), *TargetRaceLevel.ToString());
