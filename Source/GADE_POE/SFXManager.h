@@ -1,12 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
 #include "HashMap.h"
 #include "Sound/SoundBase.h"
 #include "Components/AudioComponent.h"
 #include "SFXManager.generated.h"
 
+// Structure to map sound keys to sound assets 
 USTRUCT(BlueprintType)
 struct FSoundMapping
 {
@@ -19,54 +20,58 @@ struct FSoundMapping
     USoundBase* SoundAsset;
 };
 
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class GADE_POE_API USFXManager : public UActorComponent
+UCLASS()
+class GADE_POE_API ASFXManager : public AActor
 {
     GENERATED_BODY()
 
-public:
-    USFXManager();
+private:
+	static ASFXManager* Instance; // Singleton instance
+
+    UPROPERTY()
+	UHashMap* SoundMap; // HashMap to store sound mappings
+
+    UPROPERTY()
+	UAudioComponent* BackgroundMusicComponent; // Audio component for background music
+
+    UPROPERTY()
+	USoundBase* PreloadedWaypointSound; // Preloaded sound for waypoints
+
+    UPROPERTY() 
+    USoundBase* PreloadedCheckpointSound; // Preloaded sound for checkpoints
+
+    UPROPERTY()
+	USoundBase* PreloadedCrashSound; // Preloaded sound for crashes
+
+    UPROPERTY()
+	USoundBase* PreloadedLapSound; // Preloaded sound for laps
+
+    UPROPERTY()
+	USoundBase* PreloadedEngineSound; // Preloaded sound for engine
+
+	UPROPERTY()
+	USoundBase* PreloadedBackgroundMusic; // New property for background music
 
 protected:
-    virtual void BeginPlay() override;
+    ASFXManager();
 
 public:
-    UFUNCTION(BlueprintCallable, Category = "SFX")
-    void PlaySound(const FString& SoundKey);
+    static ASFXManager* GetInstance(UWorld* World); // Static function to get the singleton instance
+
+    virtual void BeginPlay() override;
+
+    UFUNCTION(BlueprintCallable, Category = "SFX") 
+    void PlaySound(const FString& SoundKey); // Blueprint function to play a sound
 
     UFUNCTION(BlueprintCallable, Category = "SFX")
-    void PlayBackgroundMusic(const FString& SoundKey);
+    void PlayBackgroundMusic(const FString& SoundKey); // Blueprint function to play background music
 
     UFUNCTION(BlueprintCallable, Category = "SFX")
-    void StopBackgroundMusic();
+	void StopBackgroundMusic(); // Blueprint function to stop background music
 
     UFUNCTION(BlueprintCallable, Category = "SFX")
-    void AddSound(const FString& SoundKey, USoundBase* Sound);
+    void AddSound(const FString& SoundKey, USoundBase* Sound); // Blueprint function to add a sound
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SFX")
-    TArray<FSoundMapping> DefaultSoundMappings;
-
-private:
-    UPROPERTY()
-    UHashMap* SoundMap;
-
-    UPROPERTY()
-    UAudioComponent* BackgroundMusicComponent;
-
-    // Temporary storage for pre-loaded sounds
-    UPROPERTY()
-    USoundBase* PreloadedWaypointSound;
-
-    UPROPERTY()
-    USoundBase* PreloadedCheckpointSound;
-
-    UPROPERTY()
-    USoundBase* PreloadedCrashSound;
-
-    UPROPERTY()
-    USoundBase* PreloadedLapSound;
-
-    UPROPERTY()
-    USoundBase* PreloadedEngineSound;
-
+	TArray<FSoundMapping> DefaultSoundMappings; // Default sound mappings for the SFX Manager
 };

@@ -42,6 +42,7 @@ APlayerHamster::APlayerHamster()
     PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
     PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
     PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+    PhysicsBody->OnComponentBeginOverlap.AddDynamic(this, &APlayerHamster::OnPhysicsBodyOverlapBegin);
 
     // Configure the character movement component
     GetCharacterMovement()->MaxWalkSpeed = 600.f;
@@ -50,6 +51,7 @@ APlayerHamster::APlayerHamster()
     GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
     GetCharacterMovement()->SetMovementMode(MOVE_Flying); // Use flying mode to let physics body interact with environment
 
+    // Set up the spring arm component
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(GetCapsuleComponent());
     SpringArm->TargetArmLength = 300.0f;
@@ -57,27 +59,29 @@ APlayerHamster::APlayerHamster()
     SpringArm->CameraLagSpeed = 5.0f;
     SpringArm->SetRelativeRotation(FRotator(-10.f, 0.f, 0.f));
 
+	// Set up the camera
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
 
+	// Set up the spline component
     CurrentLap = 0;
     CurrentWaypointIndex = 0;
     bIsPlayer = true;
     bUseGraphNavigation = false;
     CurrentWaypoint = nullptr;
-
-    SFXManager = CreateDefaultSubobject<USFXManager>(TEXT("SFXManager"));
 }
 
 void APlayerHamster::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Find the spline component
     if (!Spline)
     {
         Spline = FindComponentByClass<USplineComponent>();
     }
 
+	// Create the UI widgets
     if (PauseMenuWidgetClass)
     {
         PauseMenuWidget = CreateWidget<UUserWidget>(GetWorld(), PauseMenuWidgetClass);
@@ -91,6 +95,7 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: PauseMenuWidgetClass is not set in the editor!"));
     }
 
+    // Create the UI widgets for the End UI
     if (EndUIWidgetClass)
     {
         EndUIWidget = CreateWidget<UUserWidget>(GetWorld(), EndUIWidgetClass);
@@ -104,13 +109,18 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: EndUIWidgetClass is not set in the editor!"));
     }
 
+	// Create the HUD widget for BeginnerMap or AdvancedMap
     if (HUDClass)
     {
-        HUDWidget = CreateWidget<UBeginnerRaceHUD>(GetWorld()->GetFirstPlayerController(), HUDClass);
-        if (HUDWidget)
+        if (GetWorld()->GetMapName() == "BeginnerMap" || GetWorld()->GetMapName() == "AdvancedMap")  // Check for BeginnerMap or AdvancedMap 
         {
-            HUDWidget->AddToViewport();
+            HUDWidget = CreateWidget<UBeginnerRaceHUD>(GetWorld()->GetFirstPlayerController(), HUDClass); // Create a HUD widget for BeginnerMap or AdvancedMap
+            if (HUDWidget)
+            {
+             HUDWidget->AddToViewport();
+            }
         }
+        
     }
 
     // Check for AdvancedRaceManager first (for advanced map)
@@ -151,11 +161,12 @@ void APlayerHamster::BeginPlay()
         FirstWaypoint = WaypointManager->GetWaypoint(0);
     }
 
-    if (FirstWaypoint)
+    if (FirstWaypoint) // Check if the first waypoint is valid
     {
-        FVector StartLocation = FirstWaypoint->GetActorLocation() + FVector(0.f, 0.f, 100.f);
+        // Teleport to the first waypoint with a small offset 
+		FVector StartLocation = FirstWaypoint->GetActorLocation() + FVector(0.f, 0.f, 100.f); // Offset to avoid collision issues
         bool bTeleportSuccess = SetActorLocation(StartLocation, false, nullptr, ETeleportType::TeleportPhysics);
-        if (bTeleportSuccess)
+        if (bTeleportSuccess) // Check if the teleport was successful 
         {
             UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Teleported to first waypoint at %s"), *StartLocation.ToString());
         }
@@ -171,19 +182,20 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: First waypoint is null"));
     }
 
-    RegisterWithGameState();
+    RegisterWithGameState(); // Register with the game state
 
-    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
-    if (PlayerController)
+    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController(); // Get the player controller
+    if (PlayerController) // Check if the player controller is valid
     {
-        PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->SetInputMode(FInputModeGameOnly()); // Set input mode to game only
         PlayerController->bShowMouseCursor = false;
     }
 
+	ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()); // Get the SFXManager instance
     if (SFXManager)
     {
         SFXManager->PlayBackgroundMusic("bgm");
-        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Started background music"));
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Started background music")); // Log message for debugging purposes
     }
     else
     {
@@ -195,34 +207,36 @@ void APlayerHamster::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (GameState && CurrentLap >= GameState->TotalLaps)
+    ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()); // Get the SFXManager instance
+
+    if (GameState && CurrentLap >= GameState->TotalLaps) // Check if the player has finished the race 
     {
-        GetCharacterMovement()->DisableMovement();
-        GameState->bRaceFinished = true;
+		GetCharacterMovement()->DisableMovement(); // Disable movement
+        GameState->bRaceFinished = true; // Set the race finished flag
     }
 
-    if (GameState && GameState->bRaceFinished && !bEndUIShown && EndUIWidget)
+    if (GameState && GameState->bRaceFinished && !bEndUIShown && EndUIWidget) // Check if the race has finished and the end UI has not been shown
     {
-        EndUIWidget->AddToViewport();
-        EndUIWidget->SetVisibility(ESlateVisibility::Visible);
-        APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
-        if (PlayerController)
+        EndUIWidget->AddToViewport(); // Add the end UI widget to the viewport
+        EndUIWidget->SetVisibility(ESlateVisibility::Visible); // Set the visibility of the end UI widget
+        APlayerController* PlayerController = GetWorld()->GetFirstPlayerController(); // Get the player controller
+        if (PlayerController) // Check if the player controller is valid
         {
-            PlayerController->SetInputMode(FInputModeUIOnly());
-            PlayerController->bShowMouseCursor = true;
+			PlayerController->SetInputMode(FInputModeUIOnly()); // Set input mode to UI only
+            PlayerController->bShowMouseCursor = true; // Show the mouse cursor
         }
-        if (SFXManager)
+		if (SFXManager) // Check if the SFXManager is valid
         {
             SFXManager->PlaySound("end");
             SFXManager->StopBackgroundMusic();
         }
         bEndUIShown = true;
-        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: End UI shown"));
+		UE_LOG(LogTemp, Log, TEXT("PlayerHamster: End UI shown")); // Log message for debugging purposes
     }
 
     // Check distance to current waypoint and trigger OnWaypointReached if close enough
     AActor* TargetWaypoint = nullptr;
-    if (bUseGraphNavigation && RaceManager && CurrentWaypoint)
+    if (bUseGraphNavigation && RaceManager && CurrentWaypoint) 
     {
         TargetWaypoint = CurrentWaypoint;
     }
@@ -231,6 +245,7 @@ void APlayerHamster::Tick(float DeltaTime)
         TargetWaypoint = WaypointManager->GetWaypoint(CurrentWaypointIndex);
     }
 
+    // Check if the target waypoint is valid and trigger OnWaypointReached if close enough
     if (TargetWaypoint)
     {
         FVector PlayerLocation = GetActorLocation();
@@ -277,20 +292,6 @@ void APlayerHamster::Tick(float DeltaTime)
         SFXManager->PlaySound("engine");
     }
 
-    TArray<AActor*> OverlappingActors;
-    PhysicsBody->GetOverlappingActors(OverlappingActors, ACharacter::StaticClass());
-    for (AActor* Actor : OverlappingActors)
-    {
-        if (Actor != this && Actor->GetName().Contains("Racer"))
-        {
-            if (SFXManager)
-            {
-                SFXManager->PlaySound("crash");
-                UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Collided with AI racer: %s"), *Actor->GetName());
-            }
-        }
-    }
-
     // Apply physics force to the physics body
     if (MoveDirection.SizeSquared() > 0.0f)
     {
@@ -299,6 +300,7 @@ void APlayerHamster::Tick(float DeltaTime)
     }
 }
 
+// Called to bind functionality to input 
 void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -311,7 +313,7 @@ void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindAction("Pause", IE_Pressed, this, &APlayerHamster::TogglePauseMenu);
 }
 
-void APlayerHamster::MoveForward(float Value)
+void APlayerHamster::MoveForward(float Value) // Function to move the player forward
 {
     if (Value > 0.0f)
     {
@@ -332,16 +334,16 @@ void APlayerHamster::MoveForward(float Value)
     AddMovementInput(MoveDirection, CurrentSpeed * GetWorld()->GetDeltaSeconds());
 }
 
-void APlayerHamster::MoveRight(float Value)
+void APlayerHamster::MoveRight(float Value) // Function to move the player right
 {
-    if (Value != 0.0f)
+    if (Value != 0.0f) 
     {
         AddControllerYawInput(Value * TurnSpeed * GetWorld()->GetDeltaSeconds());
         PhysicsBody->SetPhysicsAngularVelocityInDegrees(FVector(0, Value * TurnSpeed, 0)); // Apply angular velocity for turning
     }
 }
 
-void APlayerHamster::Brake(float Value)
+void APlayerHamster::Brake(float Value) // Function to brake the player
 {
     if (Value > 0.0f)
     {
@@ -350,7 +352,7 @@ void APlayerHamster::Brake(float Value)
     }
 }
 
-void APlayerHamster::Turn(float Value)
+void APlayerHamster::Turn(float Value) // Function to turn the player
 {
     if (SpringArm)
     {
@@ -360,7 +362,7 @@ void APlayerHamster::Turn(float Value)
     }
 }
 
-void APlayerHamster::LookUp(float Value)
+void APlayerHamster::LookUp(float Value) // Function to look up or down
 {
     if (SpringArm)
     {
@@ -370,11 +372,14 @@ void APlayerHamster::LookUp(float Value)
     }
 }
 
-void APlayerHamster::TogglePauseMenu()
+void APlayerHamster::TogglePauseMenu() // Function to toggle the pause menu
 {
     if (!PauseMenuWidget) return;
     APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
     if (!PlayerController) return;
+
+    ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld());
+
     if (bIsPaused)
     {
         PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden);
@@ -405,12 +410,12 @@ void APlayerHamster::TogglePauseMenu()
     }
 }
 
-float APlayerHamster::GetSpeed() const
+float APlayerHamster::GetSpeed() const // Function to get the current speed
 {
     return CurrentSpeed;
 }
 
-void APlayerHamster::RegisterWithGameState()
+void APlayerHamster::RegisterWithGameState() // Function to register the player hamster with the game state
 {
     if (GameState)
     {
@@ -418,8 +423,9 @@ void APlayerHamster::RegisterWithGameState()
     }
 }
 
-void APlayerHamster::OnWaypointReached(AActor* Waypoint)
+void APlayerHamster::OnWaypointReached(AActor* Waypoint) // Function to handle when a waypoint is reached (advanced map)
 {
+    ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld());
     if (SFXManager)
     {
         SFXManager->PlaySound("waypoint");
@@ -473,5 +479,16 @@ void APlayerHamster::OnWaypointReached(AActor* Waypoint)
     if (GameState)
     {
         GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
+    }
+}
+
+// Function to handle when the player hamster collides with another actor
+void APlayerHamster::OnPhysicsBodyOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld());
+    if (OtherActor != this && OtherActor->GetName().Contains("Racer") && SFXManager)
+    {
+        SFXManager->PlaySound("crash");
+        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Collided with AI racer: %s"), *OtherActor->GetName());
     }
 }
