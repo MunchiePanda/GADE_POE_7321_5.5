@@ -59,11 +59,11 @@ APlayerHamster::APlayerHamster()
     SpringArm->CameraLagSpeed = 5.0f;
     SpringArm->SetRelativeRotation(FRotator(-10.f, 0.f, 0.f));
 
-	// Set up the camera
+    // Set up the camera
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm);
 
-	// Set up the spline component
+    // Set up the spline component
     CurrentLap = 0;
     CurrentWaypointIndex = 0;
     bIsPlayer = true;
@@ -81,7 +81,7 @@ void APlayerHamster::BeginPlay()
         Spline = FindComponentByClass<USplineComponent>();
     }
 
-	// Create the UI widgets
+    // Create the UI widgets
     if (PauseMenuWidgetClass)
     {
         PauseMenuWidget = CreateWidget<UUserWidget>(GetWorld(), PauseMenuWidgetClass);
@@ -109,18 +109,39 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: EndUIWidgetClass is not set in the editor!"));
     }
 
-	// Create the HUD widget for BeginnerMap or AdvancedMap
+    // Create the HUD widget for BeginnerMap or AdvancedMap
     if (HUDClass)
     {
-        if (GetWorld()->GetMapName() == "BeginnerMap" || GetWorld()->GetMapName() == "AdvancedMap")  // Check for BeginnerMap or AdvancedMap 
+        FString CurrentLevelName = GetWorld()->GetMapName();
+        // Remove the PIE prefix if present (e.g., "UEDPIE_0_")
+        CurrentLevelName.RemoveFromStart(TEXT("UEDPIE_0_"));
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Current map name after prefix removal: %s"), *CurrentLevelName);
+
+        // Use Contains for more robust matching
+        bool bIsBeginnerMap = CurrentLevelName.Contains(TEXT("BeginnerMap"), ESearchCase::IgnoreCase);
+        bool bIsAdvancedMap = CurrentLevelName.Contains(TEXT("AdvancedMap"), ESearchCase::IgnoreCase);
+
+        if (bIsBeginnerMap || bIsAdvancedMap)
         {
-            HUDWidget = CreateWidget<UBeginnerRaceHUD>(GetWorld()->GetFirstPlayerController(), HUDClass); // Create a HUD widget for BeginnerMap or AdvancedMap
+            HUDWidget = CreateWidget<UBeginnerRaceHUD>(GetWorld()->GetFirstPlayerController(), HUDClass);
             if (HUDWidget)
             {
-             HUDWidget->AddToViewport();
+                HUDWidget->AddToViewport();
+                UE_LOG(LogTemp, Log, TEXT("PlayerHamster: HUD widget added to viewport for %s"), *CurrentLevelName);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Failed to create HUD widget for %s"), *CurrentLevelName);
             }
         }
-        
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Map name %s does not match BeginnerMap or AdvancedMap"), *CurrentLevelName);
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PlayerHamster: HUDClass is not set!"));
     }
 
     // Check for AdvancedRaceManager first (for advanced map)
@@ -164,7 +185,7 @@ void APlayerHamster::BeginPlay()
     if (FirstWaypoint) // Check if the first waypoint is valid
     {
         // Teleport to the first waypoint with a small offset 
-		FVector StartLocation = FirstWaypoint->GetActorLocation() + FVector(0.f, 0.f, 100.f); // Offset to avoid collision issues
+        FVector StartLocation = FirstWaypoint->GetActorLocation() + FVector(0.f, 0.f, 100.f); // Offset to avoid collision issues
         bool bTeleportSuccess = SetActorLocation(StartLocation, false, nullptr, ETeleportType::TeleportPhysics);
         if (bTeleportSuccess) // Check if the teleport was successful 
         {
@@ -187,11 +208,11 @@ void APlayerHamster::BeginPlay()
     APlayerController* PlayerController = GetWorld()->GetFirstPlayerController(); // Get the player controller
     if (PlayerController) // Check if the player controller is valid
     {
-		PlayerController->SetInputMode(FInputModeGameOnly()); // Set input mode to game only
+        PlayerController->SetInputMode(FInputModeGameOnly()); // Set input mode to game only
         PlayerController->bShowMouseCursor = false;
     }
 
-	ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()); // Get the SFXManager instance
+    ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()); // Get the SFXManager instance
     if (SFXManager)
     {
         SFXManager->PlayBackgroundMusic("bgm");
