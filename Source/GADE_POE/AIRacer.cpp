@@ -16,11 +16,11 @@ AAIRacer::AAIRacer()
     if (Capsule)
     {
         Capsule->SetCapsuleSize(40.0f, 96.0f);
-        Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        Capsule->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // Only use for overlap queries
         Capsule->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
-        Capsule->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Block);
-        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Block);
+        Capsule->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Overlap);
+        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Overlap);
         Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
     }
 
@@ -31,10 +31,10 @@ AAIRacer::AAIRacer()
     PhysicsBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsBody"));
     PhysicsBody->SetupAttachment(RootComponent);
     PhysicsBody->SetSimulatePhysics(true);
-    PhysicsBody->SetEnableGravity(true);
+    PhysicsBody->SetEnableGravity(false); // Initially disabled, enabled after grounding
     PhysicsBody->SetConstraintMode(EDOFMode::Default);
-    PhysicsBody->SetAngularDamping(5.0f);
-    PhysicsBody->SetLinearDamping(0.5f);
+    PhysicsBody->SetAngularDamping(0.1f); // Lowered for smoother rotation
+    PhysicsBody->SetLinearDamping(0.05f); // Lowered for smoother movement
     PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
     PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
     PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);

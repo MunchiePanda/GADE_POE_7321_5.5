@@ -84,6 +84,15 @@ void AAIRacerContoller::BeginPlay()
         }
     }
 
+    // Snap to first waypoint
+    AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
+    if (Racer && CurrentWaypoint)
+    {
+        FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
+        Racer->SetActorLocation(WaypointLocation + FVector(0, 0, 10.0f), false);
+        UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Snapped to first waypoint at %s"), *GetName(), *WaypointLocation.ToString());
+    }
+
     if (GetPawn())
     {
         bInitialized = true;
@@ -127,42 +136,6 @@ void AAIRacerContoller::Tick(float DeltaTime)
         UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Pawn possessed, initializing navigation."), *GetName());
         GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
     }
-
-    AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
-    if (Racer && CurrentWaypoint)
-    {
-        // Raycast to ground the racer on the track
-        FVector Start = Racer->GetActorLocation();
-        FVector End = Start + FVector(0, 0, -200.0f); // Cast downward 200 units
-        FHitResult HitResult;
-        bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
-        if (bHit)
-        {
-            // Snap the racer to the track surface, keeping it slightly above to avoid jitter
-            FVector NewLocation = HitResult.Location + FVector(0, 0, 10.0f); // Offset slightly above the surface
-            Racer->SetActorLocation(FVector(NewLocation.X, NewLocation.Y, NewLocation.Z), false);
-        }
-
-        // Smooth movement toward the waypoint
-        FVector TargetLocation = CurrentWaypoint->GetActorLocation();
-        FVector CurrentLocation = Racer->GetActorLocation();
-        FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
-        float DistanceToTarget = FVector::Dist(CurrentLocation, TargetLocation);
-
-        // Interpolate movement for smoother tracking
-        FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f); // Adjust speed (5.0f) as needed
-        Racer->SetActorLocation(FVector(NewLocation.X, NewLocation.Y, CurrentLocation.Z), false);
-
-        // Apply movement force for physics interaction (e.g., collisions)
-        FVector Force = Direction * Racer->MaxAcceleration;
-        Racer->PhysicsBody->AddForce(Force);
-
-        // Check proximity to waypoint
-        if (DistanceToTarget < 200.0f)
-        {
-            OnWaypointReached(CurrentWaypoint);
-        }
-    }
 }
 
 void AAIRacerContoller::DelayedMoveToCurrentWaypoint()
@@ -175,46 +148,43 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
     if (!ReachedWaypoint || ReachedWaypoint != CurrentWaypoint)
         return;
 
-    int32 ReachedIndex = AdvancedRaceManager ? AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(ReachedWaypoint)) : INDEX_NONE;
-    UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Reached waypoint %s (index %d)"),
-        *GetName(), *ReachedWaypoint->GetName(), ReachedIndex);
-
     AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
-    int32 WaypointIndex = 0;
-
     if (Racer)
     {
         Racer->WaypointsPassed++;
         if (bUseGraphNavigation && AdvancedRaceManager)
         {
-            WaypointIndex = ReachedIndex;
-            if (WaypointIndex == INDEX_NONE) WaypointIndex = 0;
+            int32 ReachedIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(ReachedWaypoint));
+            UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Reached waypoint %s (index %d)"),
+                *GetName(), *ReachedWaypoint->GetName(), ReachedIndex);
 
             TArray<AActor*> Neighbors = Graph->GetNeighbors(ReachedWaypoint);
-            FString NeighborNames = TEXT("None"), NeighborIndices = TEXT("");
             if (Neighbors.Num() > 0)
             {
-                NeighborNames = TEXT(""); NeighborIndices = TEXT("");
-                for (AActor* Neighbor : Neighbors)
-                {
-                    int32 NeighborIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(Neighbor));
-                    NeighborNames += Neighbor->GetName() + TEXT(", ");
-                    NeighborIndices += FString::Printf(TEXT("%d, "), NeighborIndex);
-                }
-                NeighborNames.RemoveFromEnd(TEXT(", ")); NeighborIndices.RemoveFromEnd(TEXT(", "));
+                int32 RandomIndex = FMath::RandRange(0, Neighbors.Num() - 1);
+                CurrentWaypoint = Neighbors[RandomIndex];
+                int32 NextIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(CurrentWaypoint));
+                UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Randomly selected next waypoint %s (index %d) from %d neighbors"),
+                    *GetName(), *CurrentWaypoint->GetName(), NextIndex, Neighbors.Num());
             }
-            UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Waypoint %s (index %d) has %d neighbors: %s (indices: %s)"),
-                *GetName(), *ReachedWaypoint->GetName(), ReachedIndex, Neighbors.Num(), *NeighborNames, *NeighborIndices);
-
-            if (WaypointIndex == 0 && Racer->WaypointsPassed > 1)
+            else
             {
-                Racer->LapCount++; Racer->WaypointsPassed = 1;
+                CurrentWaypoint = AdvancedRaceManager->Waypoints[0];
+                int32 FallbackIndex = 0;
+                UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: No neighbors for %s, falling back to waypoint %s (index %d)"),
+                    *GetName(), *ReachedWaypoint->GetName(), *CurrentWaypoint->GetName(), FallbackIndex);
+            }
+
+            if (ReachedIndex == 0 && Racer->WaypointsPassed > 1)
+            {
+                Racer->LapCount++;
+                Racer->WaypointsPassed = 1;
                 UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Completed lap %d"), *GetName(), Racer->LapCount);
             }
         }
         else
         {
-            WaypointIndex = Racer->WaypointsPassed;
+            int32 WaypointIndex = Racer->WaypointsPassed;
             if (GameState && GameState->TotalWaypoints > 0 && Racer->WaypointsPassed >= GameState->TotalWaypoints)
             {
                 Racer->LapCount++;
@@ -222,39 +192,21 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
                 WaypointIndex = 0;
                 UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Completed lap %d"), *GetName(), Racer->LapCount);
             }
+
+            CurrentWaypoint = LinkedList->GetNext(ReachedWaypoint);
+            if (!CurrentWaypoint)
+            {
+                CurrentWaypoint = LinkedList->GetFirst();
+                UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Looped back to first waypoint"), *GetName());
+            }
+            UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Moved to next waypoint %s (index %d)"),
+                *GetName(), *CurrentWaypoint->GetName(), WaypointIndex);
         }
 
         if (GameState)
         {
-            GameState->UpdateRacerProgress(Racer, Racer->LapCount, WaypointIndex);
+            GameState->UpdateRacerProgress(Racer, Racer->LapCount, Racer->WaypointsPassed);
         }
-    }
-
-    if (bUseGraphNavigation && Graph)
-    {
-        TArray<AActor*> Neighbors = Graph->GetNeighbors(ReachedWaypoint);
-        if (Neighbors.Num() > 0)
-        {
-            int32 RandomIndex = FMath::RandRange(0, Neighbors.Num() - 1);
-            CurrentWaypoint = Neighbors[RandomIndex];
-            int32 NextIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(CurrentWaypoint));
-            UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Randomly selected next waypoint %s (index %d) from %d neighbors"),
-                *GetName(), *CurrentWaypoint->GetName(), NextIndex, Neighbors.Num());
-        }
-        else
-        {
-            CurrentWaypoint = AdvancedRaceManager->Waypoints[0];
-            int32 FallbackIndex = 0;
-            UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: No neighbors for %s (index %d), falling back to waypoint %s (index %d)"),
-                *GetName(), *ReachedWaypoint->GetName(), ReachedIndex, *CurrentWaypoint->GetName(), FallbackIndex);
-        }
-    }
-    else if (LinkedList)
-    {
-        CurrentWaypoint = LinkedList->GetNext(ReachedWaypoint);
-        int32 NextIndex = AdvancedRaceManager ? AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(CurrentWaypoint)) : INDEX_NONE;
-        UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Selected next waypoint %s (index %d) via LinkedList"),
-            *GetName(), *CurrentWaypoint->GetName(), NextIndex);
     }
 
     MoveToCurrentWaypoint();
@@ -287,5 +239,31 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
     {
         UE_LOG(LogTemp, Error, TEXT("AIRacerController %s: CurrentWaypoint is null."), *GetName());
         return;
+    }
+
+    AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
+    if (Racer && IsValid(CurrentWaypoint))
+    {
+        UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
+        if (NavSystem)
+        {
+            EPathFollowingRequestResult::Type Result = MoveToLocation(CurrentWaypoint->GetActorLocation(), 200.0f);
+            switch (Result)
+            {
+            case EPathFollowingRequestResult::RequestSuccessful:
+                UE_LOG(LogTemp, Log, TEXT("AIRacerController %s: Moving to waypoint %s at %s"),
+                    *GetName(), *CurrentWaypoint->GetName(), *CurrentWaypoint->GetActorLocation().ToString());
+                break;
+            case EPathFollowingRequestResult::Failed:
+                UE_LOG(LogTemp, Warning, TEXT("AIRacerController %s: Failed to move to waypoint %s"),
+                    *GetName(), *CurrentWaypoint->GetName());
+                break;
+                // Handle other enum values as needed
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("AIRacerController %s: Navigation system not available."), *GetName());
+        }
     }
 }
