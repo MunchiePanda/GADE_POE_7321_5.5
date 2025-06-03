@@ -1,5 +1,4 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Waypoint.generated.h"
@@ -14,13 +13,16 @@ public:
 
 protected:
     UPROPERTY(VisibleAnywhere, Category = "Components")
-    class USphereComponent* TriggerSphere; // Trigger sphere
+    class USphereComponent* TriggerSphere;
 
     UPROPERTY(VisibleAnywhere, Category = "Components")
-	class UStaticMeshComponent* VisualMesh; // Visual mesh
+    class UStaticMeshComponent* VisualMesh;
+
+    virtual void BeginPlay() override;
+    virtual void BeginDestroy() override;
 
     UFUNCTION()
-    void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, // Called when the trigger sphere overlaps with another actor
+    void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
         bool bFromSweep, const FHitResult& SweepResult);
 };

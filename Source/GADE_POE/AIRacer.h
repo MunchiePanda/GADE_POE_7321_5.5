@@ -7,7 +7,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "AIRacer.generated.h"
 
-class AAIRacerContoller; // Fixed forward declaration
+class AAIRacerContoller;
 class ABeginnerRaceGameState;
 
 UCLASS()

@@ -3,8 +3,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "AIRacer.h"
 #include "AIRacerContoller.h"
+#include "AdvancedRaceManager.h"
+#include "Kismet/GameplayStatics.h"
 
-// Sets default values
 AWaypoint::AWaypoint()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -21,18 +22,44 @@ AWaypoint::AWaypoint()
     TriggerSphere->OnComponentBeginOverlap.AddDynamic(this, &AWaypoint::OnOverlapBegin);
 }
 
+void AWaypoint::BeginPlay()
+{
+    Super::BeginPlay();
+}
 
-// Called when the game starts or when spawned
 void AWaypoint::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-    bool bFromSweep, const FHitResult& SweepResult) // Called when the trigger sphere overlaps with another actor
+    bool bFromSweep, const FHitResult& SweepResult)
 {
-    if (AAIRacer* Racer = Cast<AAIRacer>(OtherActor)) // Check if the other actor is an AI Racer
+    if (AAIRacer* Racer = Cast<AAIRacer>(OtherActor))
     {
         AController* Controller = Racer->GetController();
         if (AAIRacerContoller* AIRacerContoller = Cast<AAIRacerContoller>(Controller))
         {
-            AIRacerContoller->OnWaypointReached(this); // Call the OnWaypointReached function
+            AIRacerContoller->OnWaypointReached(this);
         }
     }
+}
+
+void AWaypoint::BeginDestroy()
+{
+    //UE_LOG(LogTemp, Log, TEXT("Waypoint::BeginDestroy - %s, IsPendingKill: %d"), *GetName(), IsPendingKill());
+    if (AAdvancedRaceManager* RaceManager = Cast<AAdvancedRaceManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), AAdvancedRaceManager::StaticClass())))
+    {
+        if (AGraph* Graph = RaceManager->GetGraph())
+        {
+            Graph->RemoveNode(this);
+            UE_LOG(LogTemp, Log, TEXT("Waypoint::BeginDestroy - Removed %s from graph"), *GetName());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Waypoint::BeginDestroy - Failed to get Graph from AdvancedRaceManager"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Waypoint::BeginDestroy - Failed to find AdvancedRaceManager"));
+    }
+    Super::BeginDestroy();
 }

@@ -33,8 +33,12 @@ public:
     TArray<AActor*> GetNeighbors(AActor* Waypoint);
 
     UFUNCTION(BlueprintCallable)
-    TArray<AActor*> GetAllKeys( TArray<AActor*>& OutWaypoints);
+    TArray<AActor*> GetAllKeys(TArray<AActor*>& OutWaypoints);
+
+    UFUNCTION(BlueprintCallable)
+    void RemoveNode(AActor* Waypoint);
 
 private:
     TempHashMap<AActor*, FGraphNode> Nodes;
+    TSet<AActor*> PendingRemoval; // Track waypoints being removed
 };

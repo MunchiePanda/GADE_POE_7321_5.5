@@ -44,11 +44,41 @@ public:
         Count++;
     }
 
+    void Remove(std::function<bool(const T&)> Predicate)
+    {
+        TNode<T>* Current = Head;
+        TNode<T>* Prev = nullptr;
+
+        while (Current)
+        {
+            if (Predicate(Current->Data))
+            {
+                TNode<T>* NodeToDelete = Current;
+                if (Prev)
+                {
+                    Prev->Next = Current->Next;
+                }
+                else
+                {
+                    Head = Current->Next;
+                }
+                Current = Current->Next;
+                delete NodeToDelete;
+                Count--;
+            }
+            else
+            {
+                Prev = Current;
+                Current = Current->Next;
+            }
+        }
+    }
+
     T GetAt(int32 Index) const
     {
         if (Index < 0 || Index >= Count)
         {
-            UE_LOG(LogTemp, Warning, TEXT("TLinkedList: Index out of range: %d"), Index);
+            UE_LOG(LogTemp, Warning, TEXT("TempLinkedList::GetAt - Index out of range: %d"), Index);
             return T();
         }
         TNode<T>* Current = Head;
@@ -74,14 +104,21 @@ public:
         Count = 0;
     }
 
-    // Updated Find with predicate
     TNode<T>* Find(std::function<bool(const T&)> Predicate) const
     {
+        if (!Head)
+        {
+            UE_LOG(LogTemp, Verbose, TEXT("TempLinkedList::Find - List is empty"));
+            return nullptr;
+        }
+
         TNode<T>* Current = Head;
         while (Current)
         {
             if (Predicate(Current->Data))
+            {
                 return Current;
+            }
             Current = Current->Next;
         }
         return nullptr;

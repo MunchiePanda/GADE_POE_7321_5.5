@@ -1,5 +1,4 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "AIController.h"
 #include "AIRacer.h"
@@ -9,7 +8,7 @@
 #include "Graph.h"
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
-#include "BiginnerRaceGameState.h" // Fixed typo
+#include "BiginnerRaceGameState.h"
 #include "AdvancedRaceManager.h"
 #include "AIRacerContoller.generated.h"
 
