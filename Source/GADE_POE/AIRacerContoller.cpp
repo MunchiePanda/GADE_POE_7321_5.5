@@ -12,6 +12,7 @@
 #include "AdvancedRaceManager.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SphereComponent.h"
+#include "NavFilters/NavigationQueryFilter.h"
 
 AAIRacerContoller::AAIRacerContoller()
 {
@@ -180,12 +181,16 @@ void AAIRacerContoller::Tick(float DeltaTime)
     {
         FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
         FVector RacerLocation = Racer->GetActorLocation();
-        FVector Direction = (WaypointLocation - RacerLocation).GetSafeNormal();
         float Distance = FVector::Dist(RacerLocation, WaypointLocation);
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Distance to waypoint %s: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
 
-        Racer->AddMovementInput(Direction, 1.0f);
+        // Calculate steering direction with obstacle avoidance
+        FVector DesiredDirection = (WaypointLocation - RacerLocation).GetSafeNormal();
+        FVector SteeringDirection = CalculateSteeringDirection(RacerLocation, DesiredDirection);
+        
+        // Apply movement
+        Racer->AddMovementInput(SteeringDirection, 1.0f);
 
+        // Check for waypoint overlap
         USphereComponent* WaypointSphere = Cast<USphereComponent>(CurrentWaypoint->GetComponentByClass(USphereComponent::StaticClass()));
         if (WaypointSphere)
         {
@@ -196,21 +201,15 @@ void AAIRacerContoller::Tick(float DeltaTime)
                 UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Overlapped waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
                 OnWaypointReached(CurrentWaypoint);
             }
-            else
-            {
-                UE_LOG(LogTemp, Verbose, TEXT("AIRacerContoller %s: No overlap with waypoint %s, distance: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
-            }
         }
-        else if (Distance < 50.0f)
+        else if (Distance < 200.0f)
         {
             UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached waypoint %s by distance"), *GetName(), *CurrentWaypoint->GetName());
             OnWaypointReached(CurrentWaypoint);
         }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: No sphere component on waypoint %s, distance: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
-        }
 
+        // Draw debug visualization
+        DrawDebugLine(GetWorld(), RacerLocation, RacerLocation + SteeringDirection * 200.0f, FColor::Yellow, false, 0.1f, 0, 2.f);
         DrawDebugLine(GetWorld(), RacerLocation, WaypointLocation, FColor::Cyan, false, 0.1f, 0, 2.f);
         DrawDebugSphere(GetWorld(), WaypointLocation, 50.f, 12, FColor::Green, false, 0.1f);
     }
@@ -359,6 +358,7 @@ void AAIRacerContoller::DetermineNavigationType()
 
 void AAIRacerContoller::MoveToCurrentWaypoint()
 {
+    // This function is now mainly used for initialization
     if (!CurrentWaypoint || !CurrentWaypoint->IsValidLowLevel())
     {
         UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: CurrentWaypoint is null or invalid."), *GetName());
@@ -372,30 +372,67 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
-    FVector Start = ControlledPawn->GetActorLocation();
-    FVector End = CurrentWaypoint->GetActorLocation();
+    // Movement is now handled in Tick function
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Initialized movement towards waypoint %s"), 
+        *GetName(), *CurrentWaypoint->GetName());
+}
 
-    // Use direct movement with acceptance radius
-    auto MoveResult = MoveToLocation(End, 200.0f, true, true, false, true);
-    switch (MoveResult)
+FVector AAIRacerContoller::CalculateSteeringDirection(const FVector& RacerLocation, const FVector& DesiredDirection)
+{
+    // Parameters for obstacle detection
+    const float DetectionRange = 500.0f;
+    const float DetectionAngle = 90.0f;
+    const int32 NumRays = 8;
+    const float AvoidanceWeight = 0.7f;
+    const float TargetWeight = 0.3f;
+
+    FVector SteeringDirection = DesiredDirection;
+    FVector AvoidanceDirection = FVector::ZeroVector;
+    int32 NumObstaclesDetected = 0;
+
+    // Cast rays in an arc to detect obstacles
+    for (int32 i = 0; i < NumRays; ++i)
     {
-    case EPathFollowingRequestResult::Failed:
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: MoveToLocation FAILED for waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
-        // If movement fails, use direct input
-        if (AAIRacer* Racer = Cast<AAIRacer>(ControlledPawn))
+        float Angle = FMath::DegreesToRadians(DetectionAngle * ((float)i / (NumRays - 1) - 0.5f));
+        FVector RayDirection = DesiredDirection.RotateAngleAxis(Angle, FVector(0, 0, 1));
+        
+        FHitResult HitResult;
+        FCollisionQueryParams QueryParams;
+        QueryParams.AddIgnoredActor(GetPawn());
+        
+        // Line trace to detect obstacles
+        if (GetWorld()->LineTraceSingleByChannel(
+            HitResult,
+            RacerLocation,
+            RacerLocation + RayDirection * DetectionRange,
+            ECC_Visibility,
+            QueryParams))
         {
-            FVector Direction = (End - Start).GetSafeNormal();
-            Racer->AddMovementInput(Direction, 1.0f);
+            // Calculate avoidance vector
+            FVector ObstacleDirection = (HitResult.Location - RacerLocation).GetSafeNormal();
+            float Distance = FVector::Dist(RacerLocation, HitResult.Location);
+            float AvoidanceStrength = 1.0f - FMath::Clamp(Distance / DetectionRange, 0.0f, 1.0f);
+            
+            // Add weighted avoidance direction
+            AvoidanceDirection -= ObstacleDirection * AvoidanceStrength;
+            NumObstaclesDetected++;
+
+            // Draw debug ray
+            DrawDebugLine(GetWorld(), RacerLocation, HitResult.Location, FColor::Red, false, 0.1f, 0, 2.0f);
         }
-        break;
-    case EPathFollowingRequestResult::AlreadyAtGoal:
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Already at waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
-        OnWaypointReached(CurrentWaypoint);
-        break;
-    case EPathFollowingRequestResult::RequestSuccessful:
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moving to waypoint %s at %s"), *GetName(), *CurrentWaypoint->GetName(), *End.ToString());
-        break;
+        else
+        {
+            // Draw debug ray for no hit
+            DrawDebugLine(GetWorld(), RacerLocation, RacerLocation + RayDirection * DetectionRange, FColor::Green, false, 0.1f, 0, 1.0f);
+        }
     }
 
-    DrawDebugLine(GetWorld(), Start, End, FColor::Cyan, false, 5.f, 0, 2.f);
+    // If obstacles were detected, combine avoidance and desired direction
+    if (NumObstaclesDetected > 0)
+    {
+        AvoidanceDirection.Normalize();
+        SteeringDirection = (AvoidanceDirection * AvoidanceWeight + DesiredDirection * TargetWeight).GetSafeNormal();
+    }
+
+    return SteeringDirection;
 }
