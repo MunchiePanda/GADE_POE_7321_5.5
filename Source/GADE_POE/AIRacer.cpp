@@ -12,43 +12,75 @@ AAIRacer::AAIRacer()
 {
     PrimaryActorTick.bCanEverTick = true;
 
+    // Setup capsule collision
     UCapsuleComponent* Capsule = GetCapsuleComponent();
     if (Capsule)
     {
         Capsule->SetCapsuleSize(40.0f, 96.0f);
-        Capsule->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Capsule->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
-        Capsule->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
-        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Overlap);
-        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Overlap);
-        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+        // Set up collision responses
+        FCollisionResponseContainer ResponseContainer;
+        ResponseContainer.SetAllChannels(ECR_Block);
+        ResponseContainer.SetResponse(ECC_Pawn, ECR_Overlap);
+        ResponseContainer.SetResponse(ECC_Camera, ECR_Ignore);
+        Capsule->SetCollisionResponseToChannels(ResponseContainer);
+        
+        // Enable hit events
+        Capsule->SetNotifyRigidBodyCollision(true);
+        Capsule->SetGenerateOverlapEvents(true);
     }
 
+    // Setup skeletal mesh
     RacerMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RacerMesh"));
     RacerMesh->SetupAttachment(RootComponent);
     RacerMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
+    // Setup physics body
     PhysicsBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsBody"));
     PhysicsBody->SetupAttachment(RootComponent);
-    PhysicsBody->SetSimulatePhysics(false); // Disable physics for navigation
-    PhysicsBody->SetEnableGravity(false);
-    PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
-    PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-    PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+    PhysicsBody->SetSimulatePhysics(false);
+    PhysicsBody->SetEnableGravity(true);
+    PhysicsBody->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 
+    // Setup movement component
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {
-        Movement->bOrientRotationToMovement = false;
+        Movement->bOrientRotationToMovement = true;
         Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
-        Movement->bUseControllerDesiredRotation = false;
+        Movement->bUseControllerDesiredRotation = true;
+        
+        // Ground movement settings
         Movement->NavAgentProps.bCanWalk = true;
-        Movement->NavAgentProps.bCanFly = true; // Enable flying for MOVE_Flying
+        Movement->NavAgentProps.bCanFly = false;
         Movement->bCanWalkOffLedges = false;
-        Movement->SetMovementMode(MOVE_Flying);
-        Movement->GravityScale = 0.0f;
-        Movement->MaxFlySpeed = 600.0f; // Explicitly set for flying
-        Movement->MaxAcceleration = 500.0f;
+        Movement->SetMovementMode(MOVE_Walking);
+        Movement->GravityScale = 8.0f; // Significantly increased gravity
+        
+        // Adjust movement speeds
+        Movement->MaxWalkSpeed = 600.0f;
+        Movement->MaxAcceleration = 2000.0f;
+        Movement->BrakingDecelerationWalking = 2000.0f;
+        Movement->GroundFriction = 8.0f;
+        
+        // Navigation settings
+        Movement->NavAgentProps.AgentRadius = 40.0f;
+        Movement->NavAgentProps.AgentHeight = 96.0f;
+        Movement->bUseRVOAvoidance = true;
+        Movement->AvoidanceConsiderationRadius = 100.0f;
+        
+        // Physics settings
+        Movement->Mass = 100.0f;
+        Movement->bMaintainHorizontalGroundVelocity = true;
+        Movement->bSnapToPlaneAtStart = true;
+        Movement->SetWalkableFloorAngle(50.0f);
+        
+        // Additional stability settings
+        Movement->bAlwaysCheckFloor = true;
+        Movement->bUseFlatBaseForFloorChecks = true;
+        Movement->MinAnalogWalkSpeed = 0.0f;
+        Movement->bEnablePhysicsInteraction = true;
     }
 
     AIControllerClass = AAIRacerContoller::StaticClass();
@@ -56,7 +88,7 @@ AAIRacer::AAIRacer()
 
     RacerType = ERacerType::Medium;
     MaxSpeed = 600.0f;
-    MaxAcceleration = 500.0f;
+    MaxAcceleration = 2000.0f;
 }
 
 void AAIRacer::BeginPlay()
@@ -84,8 +116,8 @@ void AAIRacer::SetupRacerAttributes()
         MaxAcceleration = 900.0f;
         break;
     case ERacerType::Medium:
-        MaxSpeed = 600.0f;
-        MaxAcceleration = 4000.0f;
+        MaxSpeed = 4000.0f;
+        MaxAcceleration = 500.0f;
         break;
     case ERacerType::Slow:
         MaxSpeed = 4000.0f;
@@ -96,7 +128,7 @@ void AAIRacer::SetupRacerAttributes()
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {
-        Movement->MaxFlySpeed = MaxSpeed;
+        Movement->MaxWalkSpeed = MaxSpeed;
         Movement->MaxAcceleration = MaxAcceleration;
     }
 }

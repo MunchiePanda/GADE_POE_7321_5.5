@@ -1,6 +1,8 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/SphereComponent.h" // Added for USphereComponent
+#include "Components/StaticMeshComponent.h" // Added for UStaticMeshComponent
 #include "Waypoint.generated.h"
 
 UCLASS()

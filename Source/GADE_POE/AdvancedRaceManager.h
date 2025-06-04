@@ -1,5 +1,4 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Graph.h"
@@ -35,6 +34,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Waypoints")
     AGraph* GetGraph() const { return Graph; }
 
+    // New getter for total waypoints
+    UFUNCTION(BlueprintCallable, Category = "Waypoints")
+    int32 GetTotalWaypoints() const { return TotalWaypoints; }
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Waypoint")
     TSubclassOf<class AWaypoint> WaypointClass;
 
@@ -53,4 +56,8 @@ private:
 
     UPROPERTY()
     ABeginnerRaceGameState* GameState;
+
+    // New property to store total waypoints
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Waypoint", meta = (AllowPrivateAccess = "true"))
+    int32 TotalWaypoints;
 };

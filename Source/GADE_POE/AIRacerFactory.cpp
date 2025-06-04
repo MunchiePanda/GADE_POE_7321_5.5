@@ -8,6 +8,8 @@
 #include "RacerTypes.h"
 #include "RacerSpawnPoint.h"
 #include "AIRacerContoller.h"
+#include "Engine/World.h"
+#include "CollisionQueryParams.h"
 
 AAIRacerFactory::AAIRacerFactory()
 {
@@ -20,13 +22,15 @@ AAIRacerFactory::AAIRacerFactory()
     SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
     SpawnedRacers.Empty();
     
-    static ConstructorHelpers::FClassFinder<ARacerSpawnPoint> SpawnPointClassFinder(TEXT("/Game/Blueprints/BP_RacerSpawnPoint"));
+    static ConstructorHelpers::FClassFinder<ARacerSpawnPoint> SpawnPointClassFinder(TEXT("/Game/Blueprints/AI_Racers/MyRacerSpawnPoint"));
     if (SpawnPointClassFinder.Succeeded()) // Check if the class was successfully found
     {
         SpawnPointClass = SpawnPointClassFinder.Class;
     }
-	
-    
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Failed to find MyRacerSpawnPoint blueprint class"));
+    }
 }
 
 void AAIRacerFactory::BeginPlay()
@@ -180,35 +184,48 @@ void AAIRacerFactory::SpawnRacers(UWorld* World, int32 InMaxRacers, float InFast
         FVector SpawnLocation = SpawnPoints[i]->GetActorLocation();
         UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Processing spawn location %s"), *SpawnLocation.ToString());
 
-        // Reintroduce NavMesh check
-        FNavLocation NavLocation;
-        UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(World);
-        bool bIsOnNavMesh = NavSystem && NavSystem->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
-		if (!bIsOnNavMesh) // Check if the spawn location is on the NavMesh
+        // Validate spawn point height with a longer trace
+        FHitResult GroundHit;
+        FVector TraceStart = SpawnLocation + FVector(0, 0, 500.0f);
+        FVector TraceEnd = SpawnLocation - FVector(0, 0, 500.0f);
+        FCollisionQueryParams QueryParams;
+        QueryParams.bTraceComplex = true;
+        QueryParams.AddIgnoredActor(this);
+        
+        bool bFoundGround = World->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams);
+        if (bFoundGround)
         {
-            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is not on NavMesh"), *SpawnLocation.ToString());
+            SpawnLocation = GroundHit.Location + FVector(0, 0, 100.0f); // Increased height offset
+            DrawDebugLine(World, TraceStart, GroundHit.Location, FColor::Green, false, 5.0f);
+            DrawDebugPoint(World, SpawnLocation, 20.0f, FColor::Red, false, 5.0f);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: No ground found below spawn point %s"), *SpawnLocation.ToString());
             continue;
         }
-        SpawnLocation = NavLocation.Location;
 
-        // Reintroduce collision check
-        FHitResult Hit;
-        bool bCanSpawn = !World->SweepSingleByChannel(
-            Hit,
+        // Check for overlaps at spawn location
+        FCollisionShape CapsuleShape = FCollisionShape::MakeCapsule(40.0f, 96.0f);
+        bool bHasOverlap = World->OverlapBlockingTestByChannel(
             SpawnLocation,
-            SpawnLocation + FVector(0.0f, 0.0f, 1.0f),
             FQuat::Identity,
             ECC_Pawn,
-            FCollisionShape::MakeCapsule(40.0f, 96.0f)
+            CapsuleShape
         );
 
-        if (!bCanSpawn)
+        if (bHasOverlap)
         {
-            FString BlockingActorName = Hit.GetActor() ? Hit.GetActor()->GetName() : TEXT("Unknown");
-            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is blocked by %s"), *SpawnLocation.ToString(), *BlockingActorName);
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is blocked"), *SpawnLocation.ToString());
             continue;
         }
 
+        // Spawn parameters
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+        SpawnParams.bNoFail = true;
+
+        // Determine racer type and spawn the racer
         float RandomValue = FMath::FRand();
         ERacerType RacerType;
         TSubclassOf<AAIRacer> RacerClass;
@@ -235,8 +252,6 @@ void AAIRacerFactory::SpawnRacers(UWorld* World, int32 InMaxRacers, float InFast
             continue;
         }
         //spawn the racer and AI controller 
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
         AAIRacer* NewRacer = World->SpawnActor<AAIRacer>(RacerClass, SpawnLocation, InSpawnRotation, SpawnParams);
 
         if (NewRacer)

@@ -15,7 +15,7 @@
 class AWaypointManager;
 class UCustomLinkedList;
 class AGraph;
-class AActor;
+class AWaypoint;
 class ABeginnerRaceGameState;
 
 UCLASS()
@@ -47,12 +47,13 @@ protected:
     AAdvancedRaceManager* AdvancedRaceManager;
 
     UPROPERTY()
-    AActor* CurrentWaypoint;
+    AWaypoint* CurrentWaypoint;
 
     UPROPERTY()
     ABeginnerRaceGameState* GameState;
 
     FTimerHandle InitialMoveTimerHandle;
+    FTimerHandle InitTimerHandle;
 
     bool bInitialized;
 
@@ -64,4 +65,7 @@ protected:
 
 private:
     void DetermineNavigationType();
+    void InitializeGraphNavigation();
+    void InitializeWaypointNavigation();
+    void InitializeRacerPosition();
 };

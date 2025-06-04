@@ -18,6 +18,7 @@ AAIRacerContoller::AAIRacerContoller()
     PrimaryActorTick.bCanEverTick = true;
     bInitialized = false;
     bUseGraphNavigation = true;
+    CurrentWaypoint = nullptr;
 }
 
 void AAIRacerContoller::BeginPlay()
@@ -35,79 +36,98 @@ void AAIRacerContoller::BeginPlay()
 
     if (bUseGraphNavigation)
     {
-        AdvancedRaceManager = Cast<AAdvancedRaceManager>(
-            UGameplayStatics::GetActorOfClass(GetWorld(), AAdvancedRaceManager::StaticClass()));
-        if (AdvancedRaceManager)
+        GetWorld()->GetTimerManager().SetTimer(InitTimerHandle, this, &AAIRacerContoller::InitializeGraphNavigation, 0.1f, true, 0.0f);
+    }
+    else
+    {
+        InitializeWaypointNavigation();
+    }
+}
+
+void AAIRacerContoller::InitializeGraphNavigation()
+{
+    AdvancedRaceManager = Cast<AAdvancedRaceManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), AAdvancedRaceManager::StaticClass()));
+    if (!AdvancedRaceManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: No AdvancedRaceManager found, retrying..."), *GetName());
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Found AdvancedRaceManager."), *GetName());
+    Graph = AdvancedRaceManager->GetGraph();
+    if (!Graph)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Graph is null in AdvancedRaceManager, retrying..."), *GetName());
+        return;
+    }
+
+    GetWorld()->GetTimerManager().ClearTimer(InitTimerHandle);
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Graph found."), *GetName());
+
+    if (AdvancedRaceManager->Waypoints.Num() == 0)
+    {
+        AdvancedRaceManager->CollectWaypoints();
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: CollectWaypoints called, found %d waypoints."), *GetName(), AdvancedRaceManager->Waypoints.Num());
+    }
+
+    if (AdvancedRaceManager->Waypoints.Num() > 0)
+    {
+        CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
+        if (CurrentWaypoint)
         {
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Found AdvancedRaceManager."), *GetName());
-            Graph = AdvancedRaceManager->GetGraph();
-            if (!Graph)
-            {
-                UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: Graph is null in AdvancedRaceManager."), *GetName());
-                return;
-            }
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Graph found."), *GetName());
-            if (AdvancedRaceManager->Waypoints.Num() == 0)
-            {
-                AdvancedRaceManager->CollectWaypoints();
-                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: CollectWaypoints called, found %d waypoints."), *GetName(), AdvancedRaceManager->Waypoints.Num());
-            }
-            if (AdvancedRaceManager->Waypoints.Num() > 0)
-            {
-                CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
-                if (CurrentWaypoint)
-                {
-                    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Initialized CurrentWaypoint to %s (index 0)"),
-                        *GetName(), *CurrentWaypoint->GetName());
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: First waypoint is invalid."), *GetName());
-                }
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: No waypoints in AdvancedRaceManager after collection."), *GetName());
-                return;
-            }
+            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Initialized CurrentWaypoint to %s (index 0)"),
+                *GetName(), *CurrentWaypoint->GetName());
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: No AdvancedRaceManager found for graph navigation."), *GetName());
-            return;
+            UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: First waypoint is null."), *GetName());
         }
     }
     else
     {
-        WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
-        if (!WaypointManager || !WaypointManager->WaypointList)
-        {
-            UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: Missing WaypointManager or WaypointList."), *GetName());
-            return;
-        }
-
-        LinkedList = WaypointManager->WaypointList;
-        CurrentWaypoint = LinkedList->GetFirst();
-
-        if (!CurrentWaypoint)
-        {
-            UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: No valid first waypoint."), *GetName());
-            return;
-        }
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: No waypoints in AdvancedRaceManager after collection."), *GetName());
+        return;
     }
 
+    InitializeRacerPosition();
+}
+
+void AAIRacerContoller::InitializeWaypointNavigation()
+{
+    WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
+    if (!WaypointManager || !WaypointManager->WaypointList)
+    {
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: Missing WaypointManager or WaypointList."), *GetName());
+        return;
+    }
+
+    LinkedList = WaypointManager->WaypointList;
+    CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetFirst());
+
+    if (!CurrentWaypoint)
+    {
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: No valid waypoint."), *GetName());
+        return;
+    }
+
+    InitializeRacerPosition();
+}
+
+void AAIRacerContoller::InitializeRacerPosition()
+{
     AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
     if (Racer && CurrentWaypoint && CurrentWaypoint->IsValidLowLevel())
     {
-        FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
-        Racer->SetActorLocation(WaypointLocation + FVector(50.0f * GetUniqueID(), 0, 10.0f), false);
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Snapped to first waypoint at %s"), *GetName(), *Racer->GetActorLocation().ToString());
+        // Don't move the racer, just initialize the waypoint target
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Initialized with target waypoint %s"), 
+            *GetName(), *CurrentWaypoint->GetName());
     }
 
     if (GetPawn())
     {
         bInitialized = true;
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Pawn possessed, initializing navigation."), *GetName());
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Pawn possessed, initializing waypoints."), *GetName());
         GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
     }
 }
@@ -130,7 +150,7 @@ void AAIRacerContoller::InitializeGraph(AGraph* InGraph)
             }
             else
             {
-                UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: First waypoint is invalid."), *GetName());
+                UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: First waypoint is null."), *GetName());
             }
         }
         else
@@ -176,11 +196,19 @@ void AAIRacerContoller::Tick(float DeltaTime)
                 UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Overlapped waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
                 OnWaypointReached(CurrentWaypoint);
             }
+            else
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("AIRacerContoller %s: No overlap with waypoint %s, distance: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
+            }
         }
-        else if (Distance < 100.0f)
+        else if (Distance < 50.0f)
         {
             UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached waypoint %s by distance"), *GetName(), *CurrentWaypoint->GetName());
             OnWaypointReached(CurrentWaypoint);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: No sphere component on waypoint %s, distance: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
         }
 
         DrawDebugLine(GetWorld(), RacerLocation, WaypointLocation, FColor::Cyan, false, 0.1f, 0, 2.f);
@@ -198,7 +226,7 @@ void AAIRacerContoller::Tick(float DeltaTime)
         }
         else if (!bUseGraphNavigation && LinkedList)
         {
-            CurrentWaypoint = LinkedList->GetFirst();
+            CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetFirst());
             if (CurrentWaypoint && CurrentWaypoint->IsValidLowLevel())
             {
                 UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Fallback set CurrentWaypoint to %s"), *GetName(), *CurrentWaypoint->GetName());
@@ -226,7 +254,8 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
         ReachedWaypoint->IsValidLowLevel() ? TEXT("True") : TEXT("False"),
         bIsInvalidOrDestroying ? TEXT("True") : TEXT("False"));
 
-    if (ReachedWaypoint != CurrentWaypoint)
+    AWaypoint* ReachedWaypointCast = Cast<AWaypoint>(ReachedWaypoint);
+    if (ReachedWaypointCast != CurrentWaypoint)
     {
         UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: ReachedWaypoint %s does not match CurrentWaypoint %s"),
             *GetName(), *ReachedWaypoint->GetName(), CurrentWaypoint ? *CurrentWaypoint->GetName() : TEXT("null"));
@@ -243,7 +272,7 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
     Racer->WaypointsPassed++;
     if (bUseGraphNavigation && AdvancedRaceManager)
     {
-        int32 ReachedIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(ReachedWaypoint));
+        int32 ReachedIndex = AdvancedRaceManager->Waypoints.Find(ReachedWaypointCast);
         UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached waypoint %s (index %d)"),
             *GetName(), *ReachedWaypoint->GetName(), ReachedIndex);
 
@@ -253,13 +282,13 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
         if (Neighbors.Num() > 0)
         {
             int32 RandomIndex = FMath::RandRange(0, Neighbors.Num() - 1);
-            CurrentWaypoint = Neighbors[RandomIndex];
+            CurrentWaypoint = Cast<AWaypoint>(Neighbors[RandomIndex]);
             if (!CurrentWaypoint || !CurrentWaypoint->IsValidLowLevel())
             {
                 UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Selected invalid next waypoint, falling back"), *GetName());
                 CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
             }
-            int32 NextIndex = AdvancedRaceManager->Waypoints.Find(Cast<AWaypoint>(CurrentWaypoint));
+            int32 NextIndex = AdvancedRaceManager->Waypoints.Find(CurrentWaypoint);
             UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Selected next waypoint %s (index %d)"),
                 *GetName(), *CurrentWaypoint->GetName(), NextIndex);
         }
@@ -289,10 +318,10 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
             UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Completed lap %d"), *GetName(), Racer->LapCount);
         }
 
-        CurrentWaypoint = LinkedList->GetNext(ReachedWaypoint);
+        CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetNext(ReachedWaypoint));
         if (!CurrentWaypoint)
         {
-            CurrentWaypoint = LinkedList->GetFirst();
+            CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetFirst());
             UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Looped back to first waypoint"), *GetName());
         }
         UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moved to next waypoint %s (index %d)"),
@@ -343,34 +372,24 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
-    UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
-    if (!NavSys)
-    {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: Navigation system not found."), *GetName());
-        return;
-    }
-
     FVector Start = ControlledPawn->GetActorLocation();
     FVector End = CurrentWaypoint->GetActorLocation();
 
-    UNavigationPath* Path = NavSys->FindPathToLocationSynchronously(GetWorld(), Start, End, ControlledPawn);
-    if (!Path || Path->IsPartial())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Path to waypoint %s is partial or invalid."), *GetName(), *CurrentWaypoint->GetName());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Valid path to waypoint %s."), *GetName(), *CurrentWaypoint->GetName());
-    }
-
-    auto MoveResult = MoveToActor(CurrentWaypoint, 50.0f);
+    // Use direct movement with acceptance radius
+    auto MoveResult = MoveToLocation(End, 200.0f, true, true, false, true);
     switch (MoveResult)
     {
     case EPathFollowingRequestResult::Failed:
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller %s: MoveToActor FAILED for waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: MoveToLocation FAILED for waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
+        // If movement fails, use direct input
+        if (AAIRacer* Racer = Cast<AAIRacer>(ControlledPawn))
+        {
+            FVector Direction = (End - Start).GetSafeNormal();
+            Racer->AddMovementInput(Direction, 1.0f);
+        }
         break;
     case EPathFollowingRequestResult::AlreadyAtGoal:
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Already at waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Already at waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
         OnWaypointReached(CurrentWaypoint);
         break;
     case EPathFollowingRequestResult::RequestSuccessful:
@@ -379,5 +398,4 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
     }
 
     DrawDebugLine(GetWorld(), Start, End, FColor::Cyan, false, 5.f, 0, 2.f);
-    DrawDebugSphere(GetWorld(), End, 50.f, 12, FColor::Green, false, 5.f);
 }

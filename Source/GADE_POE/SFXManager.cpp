@@ -97,32 +97,33 @@ void ASFXManager::PlaySound(const FString& SoundKey)
 
 void ASFXManager::PlayBackgroundMusic(const FString& SoundKey)
 {
-	// Check if the world and SoundMap are valid before proceeding
+    // Check if the world and SoundMap are valid before proceeding
     if (!GetWorld() || !SoundMap) return;
 
-
-	// Try to retrieve the sound from the SoundMap using the provided key 
+    // Try to retrieve the sound from the SoundMap using the provided key 
     USoundBase* Sound = SoundMap->Get(SoundKey);
     if (Sound)
     {
-		// If BackgroundMusicComponent is not initialized, create it
-        if (!BackgroundMusicComponent)
+        // If there's an existing component, stop and destroy it first
+        if (BackgroundMusicComponent)
         {
-            BackgroundMusicComponent = UGameplayStatics::SpawnSound2D(GetWorld(), Sound);
-            if (BackgroundMusicComponent) // If the component was successfully created
-            {
-                BackgroundMusicComponent->bAutoDestroy = false;
-                BackgroundMusicComponent->SetBoolParameter(FName("Looping"), true); // Set looping parameter
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("ASFXManager: Failed to create BackgroundMusicComponent for '%s'"), *SoundKey);
-            }
+            BackgroundMusicComponent->Stop();
+            BackgroundMusicComponent->DestroyComponent();
+            BackgroundMusicComponent = nullptr;
+        }
+
+        // Create a new component
+        BackgroundMusicComponent = UGameplayStatics::SpawnSound2D(GetWorld(), Sound);
+        if (BackgroundMusicComponent)
+        {
+            BackgroundMusicComponent->bAutoDestroy = false;
+            BackgroundMusicComponent->SetVolumeMultiplier(0.5f); // Reduce volume a bit
+            BackgroundMusicComponent->bIsUISound = true; // This helps prevent issues during level transitions
+            BackgroundMusicComponent->Play();
         }
         else
         {
-            BackgroundMusicComponent->SetSound(Sound); // Set the sound
-            BackgroundMusicComponent->Play(); // Play the sound
+            UE_LOG(LogTemp, Error, TEXT("ASFXManager: Failed to create BackgroundMusicComponent for '%s'"), *SoundKey);
         }
     }
     else
@@ -143,4 +144,28 @@ void ASFXManager::AddSound(const FString& SoundKey, USoundBase* Sound)
 {
 	// Check if SoundMap is valid before adding the sound 
     if (SoundMap && Sound) SoundMap->Add(SoundKey, Sound);
+}
+
+void ASFXManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    Super::EndPlay(EndPlayReason);
+    
+    if (BackgroundMusicComponent)
+    {
+        BackgroundMusicComponent->Stop();
+        BackgroundMusicComponent->DestroyComponent();
+        BackgroundMusicComponent = nullptr;
+    }
+    
+    Instance = nullptr;
+}
+
+ASFXManager::~ASFXManager()
+{
+    if (BackgroundMusicComponent)
+    {
+        BackgroundMusicComponent->Stop();
+        BackgroundMusicComponent = nullptr;
+    }
+    Instance = nullptr;
 }

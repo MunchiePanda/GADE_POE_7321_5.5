@@ -59,6 +59,8 @@ public:
     static ASFXManager* GetInstance(UWorld* World); // Static function to get the singleton instance
 
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    ~ASFXManager();
 
     UFUNCTION(BlueprintCallable, Category = "SFX") 
     void PlaySound(const FString& SoundKey); // Blueprint function to play a sound
