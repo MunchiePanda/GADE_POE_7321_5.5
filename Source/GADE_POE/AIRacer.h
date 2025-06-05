@@ -18,35 +18,33 @@ class GADE_POE_API AAIRacer : public ACharacter
 public:
     AAIRacer();
 
-    UPROPERTY(VisibleAnywhere, Category = "Mesh")
-    USkeletalMeshComponent* RacerMesh;
-
-    UPROPERTY(VisibleAnywhere, Category = "Physics")
-    UStaticMeshComponent* PhysicsBody;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 LapCount = 0;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 WaypointsPassed = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    ERacerType RacerType;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxSpeed;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Racer")
-    float MaxAcceleration;
-
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
     void SetupRacerAttributes();
 
-protected:
-    virtual void BeginPlay() override;
-
-private:
     UPROPERTY()
     ABeginnerRaceGameState* GameState;
+
+    UPROPERTY(EditAnywhere, Category = "Racer")
+    ERacerType RacerType;
+
+    UPROPERTY(EditAnywhere, Category = "Racer")
+    float MaxSpeed;
+
+    UPROPERTY(EditAnywhere, Category = "Racer")
+    float MaxAcceleration;
+
+    UPROPERTY(EditAnywhere, Category = "Racer")
+    USkeletalMeshComponent* RacerMesh;
+
+    UPROPERTY(EditAnywhere, Category = "Racer")
+    UStaticMeshComponent* PhysicsBody;
+
+    UPROPERTY(VisibleAnywhere, Category = "Race")
+    int32 LapCount;
+
+    UPROPERTY(VisibleAnywhere, Category = "Race")
+    int32 WaypointsPassed;
 
     UPROPERTY()
     float CurrentSpeed = 0.0f;

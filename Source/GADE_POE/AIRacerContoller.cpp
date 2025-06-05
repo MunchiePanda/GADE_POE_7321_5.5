@@ -249,10 +249,9 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
     }
 
     bool bIsInvalidOrDestroying = !IsValid(ReachedWaypoint) || !ReachedWaypoint->HasActorBegunPlay() || ReachedWaypoint->IsActorBeingDestroyed();
-    UE_LOG(LogTemp, Verbose, TEXT("AIRacerContoller::OnWaypointReached - Processing %s: IsValidLowLevel=%s, IsInvalidOrDestroying=%s"),
-        *ReachedWaypoint->GetName(),
-        ReachedWaypoint->IsValidLowLevel() ? TEXT("True") : TEXT("False"),
-        bIsInvalidOrDestroying ? TEXT("True") : TEXT("False"));
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Processing waypoint %s"), *GetName(), *ReachedWaypoint->GetName());
+    UE_LOG(LogTemp, Log, TEXT("  - IsValidLowLevel: %s"), ReachedWaypoint->IsValidLowLevel() ? TEXT("True") : TEXT("False"));
+    UE_LOG(LogTemp, Log, TEXT("  - IsInvalidOrDestroying: %s"), bIsInvalidOrDestroying ? TEXT("True") : TEXT("False"));
 
     AWaypoint* ReachedWaypointCast = Cast<AWaypoint>(ReachedWaypoint);
     if (ReachedWaypointCast != CurrentWaypoint)
@@ -270,15 +269,17 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
     }
 
     Racer->WaypointsPassed++;
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Waypoints passed: %d"), *GetName(), Racer->WaypointsPassed);
+
     if (bUseGraphNavigation && AdvancedRaceManager)
     {
         int32 ReachedIndex = AdvancedRaceManager->Waypoints.Find(ReachedWaypointCast);
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached waypoint %s (index %d)"),
-            *GetName(), *ReachedWaypoint->GetName(), ReachedIndex);
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Using graph navigation, current waypoint index: %d"), *GetName(), ReachedIndex);
 
         TArray<AActor*> Neighbors = Graph->GetNeighbors(ReachedWaypoint);
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Found %d neighbors for %s"),
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Found %d neighbors for waypoint %s"), 
             *GetName(), Neighbors.Num(), *ReachedWaypoint->GetName());
+
         if (Neighbors.Num() > 0)
         {
             int32 RandomIndex = FMath::RandRange(0, Neighbors.Num() - 1);
@@ -295,9 +296,7 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
         else
         {
             CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
-            int32 FallbackIndex = 0;
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: No neighbors for %s, falling back to waypoint %s (index %d)"),
-                *GetName(), *ReachedWaypoint->GetName(), *CurrentWaypoint->GetName(), FallbackIndex);
+            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: No neighbors found, falling back to first waypoint"), *GetName());
         }
 
         if (ReachedIndex == 0 && Racer->WaypointsPassed > 1)
@@ -309,28 +308,22 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
     }
     else
     {
-        int32 WaypointIndex = Racer->WaypointsPassed;
-        if (GameState && GameState->TotalWaypoints > 0 && Racer->WaypointsPassed >= GameState->TotalWaypoints)
-        {
-            Racer->LapCount++;
-            Racer->WaypointsPassed = 0;
-            WaypointIndex = 0;
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Completed lap %d"), *GetName(), Racer->LapCount);
-        }
-
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Using waypoint list navigation"), *GetName());
         CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetNext(ReachedWaypoint));
         if (!CurrentWaypoint)
         {
             CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetFirst());
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Looped back to first waypoint"), *GetName());
+            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached end of waypoint list, looping back to start"), *GetName());
         }
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moved to next waypoint %s (index %d)"),
-            *GetName(), *CurrentWaypoint->GetName(), WaypointIndex);
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Next waypoint set to %s"), 
+            *GetName(), *CurrentWaypoint->GetName());
     }
 
     if (GameState)
     {
         GameState->UpdateRacerProgress(Racer, Racer->LapCount, Racer->WaypointsPassed);
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Updated race progress - Lap: %d, Waypoints: %d"), 
+            *GetName(), Racer->LapCount, Racer->WaypointsPassed);
     }
 
     MoveToCurrentWaypoint();
@@ -374,6 +367,12 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
 
     FVector Start = ControlledPawn->GetActorLocation();
     FVector End = CurrentWaypoint->GetActorLocation();
+    float DistanceToWaypoint = FVector::Dist(Start, End);
+
+    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moving to waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
+    UE_LOG(LogTemp, Log, TEXT("  - Distance to waypoint: %.2f"), DistanceToWaypoint);
+    UE_LOG(LogTemp, Log, TEXT("  - Start Location: %s"), *Start.ToString());
+    UE_LOG(LogTemp, Log, TEXT("  - End Location: %s"), *End.ToString());
 
     // Use direct movement with acceptance radius
     auto MoveResult = MoveToLocation(End, 200.0f, true, true, false, true);
@@ -381,11 +380,13 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
     {
     case EPathFollowingRequestResult::Failed:
         UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: MoveToLocation FAILED for waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  - Falling back to direct movement"));
         // If movement fails, use direct input
         if (AAIRacer* Racer = Cast<AAIRacer>(ControlledPawn))
         {
             FVector Direction = (End - Start).GetSafeNormal();
             Racer->AddMovementInput(Direction, 1.0f);
+            UE_LOG(LogTemp, Log, TEXT("  - Direct movement direction: %s"), *Direction.ToString());
         }
         break;
     case EPathFollowingRequestResult::AlreadyAtGoal:
@@ -393,7 +394,7 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         OnWaypointReached(CurrentWaypoint);
         break;
     case EPathFollowingRequestResult::RequestSuccessful:
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moving to waypoint %s at %s"), *GetName(), *CurrentWaypoint->GetName(), *End.ToString());
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Successfully started moving to waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
         break;
     }
 
