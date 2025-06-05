@@ -96,13 +96,23 @@ AAIRacer* AAIRacerFactory::CreateRacer(UWorld* World, ERacerType RacerType, cons
 	FNavLocation NavLocation; // Variable to store the navigation location
     UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(World); // Get the navigation system 
     FVector FinalSpawnLocation = SpawnLocation; // Variable to store the final spawn location 
-    if (NavSystem && NavSystem->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(100.0f, 100.0f, 100.0f)))
+    if (NavSystem)
     {
-        FinalSpawnLocation = NavLocation.Location; //ensure the racers spawn on the navmesh
+        // Try to project to nav mesh with a smaller extent
+        FVector QueryExtent(50.0f, 50.0f, 50.0f);
+        if (NavSystem->ProjectPointToNavigation(SpawnLocation, NavLocation, QueryExtent))
+        {
+            FinalSpawnLocation = NavLocation.Location + FVector(0, 0, 50.0f); // Reduced height offset
+            UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Successfully projected spawn location to nav mesh at %s"), *FinalSpawnLocation.ToString());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Failed to project spawn location %s to NavMesh"), *SpawnLocation.ToString());
+        }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: Spawn location %s is not on NavMesh, using original location"), *SpawnLocation.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerFactory: No NavSystem available"));
     }
 
     FActorSpawnParameters SpawnParams; // Variable to store the spawn parameters 
@@ -113,7 +123,7 @@ AAIRacer* AAIRacerFactory::CreateRacer(UWorld* World, ERacerType RacerType, cons
         NewRacer->RacerType = RacerType;
 		NewRacer->SetupRacerAttributes(); // Call the setup function to initialize the racer
         SpawnedRacers.Add(NewRacer);
-        UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Spawned %s at %s"), *UEnum::GetValueAsString(RacerType), *NavLocation.Location.ToString());
+        UE_LOG(LogTemp, Log, TEXT("AIRacerFactory: Spawned %s at %s"), *UEnum::GetValueAsString(RacerType), *FinalSpawnLocation.ToString());
     }
 
     return NewRacer;

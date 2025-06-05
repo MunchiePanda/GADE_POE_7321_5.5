@@ -1,3 +1,9 @@
+/**
+ Implementation of the AIRacerController class
+ This file contains the core AI logic for controlling racing characters,
+ including navigation, waypoint following, and path finding.
+ */
+
 #include "AIRacerContoller.h"
 #include "Kismet/GameplayStatics.h"
 #include "WaypointManager.h"
@@ -12,6 +18,11 @@
 #include "AdvancedRaceManager.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SphereComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "NavigationData.h"
+#include "AI/Navigation/NavigationTypes.h"
+#include "Navigation/CrowdManager.h"
+#include "Navigation/CrowdFollowingComponent.h"
 
 AAIRacerContoller::AAIRacerContoller()
 {
@@ -19,12 +30,30 @@ AAIRacerContoller::AAIRacerContoller()
     bInitialized = false;
     bUseGraphNavigation = true;
     CurrentWaypoint = nullptr;
+
+    // Initialize crowd following component for advanced avoidance
+    UCrowdFollowingComponent* CrowdFollowingComp = CreateDefaultSubobject<UCrowdFollowingComponent>(TEXT("CrowdFollowingComp"));
+    if (CrowdFollowingComp)
+    {
+        CrowdFollowingComp->SuspendCrowdSteering(false);
+        SetPathFollowingComponent(CrowdFollowingComp);
+    }
 }
 
 void AAIRacerContoller::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Configure crowd following behavior for better obstacle avoidance
+    if (UCrowdFollowingComponent* CrowdFollowing = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
+    {
+        CrowdFollowing->SetCrowdSimulationState(ECrowdSimulationState::Enabled);
+        CrowdFollowing->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High);
+        CrowdFollowing->SetCrowdSeparationWeight(1.0f);
+        CrowdFollowing->SetCrowdCollisionQueryRange(150.0f);
+    }
+
+    // Get reference to game state
     GameState = Cast<ABeginnerRaceGameState>(GetWorld()->GetGameState());
     if (!GameState)
     {
@@ -32,20 +61,24 @@ void AAIRacerContoller::BeginPlay()
         return;
     }
 
+    // Choose between graph-based or simple waypoint navigation
     DetermineNavigationType();
 
     if (bUseGraphNavigation)
     {
+        // Initialize graph navigation with retry timer in case dependencies aren't ready
         GetWorld()->GetTimerManager().SetTimer(InitTimerHandle, this, &AAIRacerContoller::InitializeGraphNavigation, 0.1f, true, 0.0f);
     }
     else
     {
+        // Initialize simple waypoint navigation
         InitializeWaypointNavigation();
     }
 }
 
 void AAIRacerContoller::InitializeGraphNavigation()
 {
+    // Find and validate the race manager
     AdvancedRaceManager = Cast<AAdvancedRaceManager>(
         UGameplayStatics::GetActorOfClass(GetWorld(), AAdvancedRaceManager::StaticClass()));
     if (!AdvancedRaceManager)
@@ -55,6 +88,8 @@ void AAIRacerContoller::InitializeGraphNavigation()
     }
 
     UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Found AdvancedRaceManager."), *GetName());
+    
+    // Get navigation graph from race manager
     Graph = AdvancedRaceManager->GetGraph();
     if (!Graph)
     {
@@ -62,15 +97,19 @@ void AAIRacerContoller::InitializeGraphNavigation()
         return;
     }
 
+    // Stop retry timer once graph is found
     GetWorld()->GetTimerManager().ClearTimer(InitTimerHandle);
     UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Graph found."), *GetName());
 
+    // Ensure waypoints are collected
     if (AdvancedRaceManager->Waypoints.Num() == 0)
     {
         AdvancedRaceManager->CollectWaypoints();
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: CollectWaypoints called, found %d waypoints."), *GetName(), AdvancedRaceManager->Waypoints.Num());
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: CollectWaypoints called, found %d waypoints."), 
+            *GetName(), AdvancedRaceManager->Waypoints.Num());
     }
 
+    // Set initial waypoint
     if (AdvancedRaceManager->Waypoints.Num() > 0)
     {
         CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
@@ -90,11 +129,13 @@ void AAIRacerContoller::InitializeGraphNavigation()
         return;
     }
 
+    // Initialize racer's starting position
     InitializeRacerPosition();
 }
 
 void AAIRacerContoller::InitializeWaypointNavigation()
 {
+    // Find waypoint manager and validate waypoint list
     WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
     if (!WaypointManager || !WaypointManager->WaypointList)
     {
@@ -102,6 +143,7 @@ void AAIRacerContoller::InitializeWaypointNavigation()
         return;
     }
 
+    // Get waypoint list and set initial waypoint
     LinkedList = WaypointManager->WaypointList;
     CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetFirst());
 
@@ -111,34 +153,39 @@ void AAIRacerContoller::InitializeWaypointNavigation()
         return;
     }
 
+    // Initialize racer's starting position
     InitializeRacerPosition();
 }
 
 void AAIRacerContoller::InitializeRacerPosition()
 {
+    // Validate racer and waypoint
     AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
     if (Racer && CurrentWaypoint && CurrentWaypoint->IsValidLowLevel())
     {
-        // Don't move the racer, just initialize the waypoint target
         UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Initialized with target waypoint %s"), 
             *GetName(), *CurrentWaypoint->GetName());
     }
 
+    // Start navigation once pawn is possessed
     if (GetPawn())
     {
         bInitialized = true;
         UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Pawn possessed, initializing waypoints."), *GetName());
-        GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
+        GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, 
+            &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false, 0.0f);
     }
 }
 
 void AAIRacerContoller::InitializeGraph(AGraph* InGraph)
 {
+    // Set up graph-based navigation
     Graph = InGraph;
     bUseGraphNavigation = true;
 
     if (Graph && AdvancedRaceManager)
     {
+        // Set initial waypoint if available
         if (AdvancedRaceManager->Waypoints.Num() > 0)
         {
             CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
@@ -168,68 +215,88 @@ void AAIRacerContoller::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
+    // Initialize navigation if not already done
     if (!bInitialized && GetPawn())
     {
         bInitialized = true;
         UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Pawn possessed, initializing navigation."), *GetName());
-        GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false);
+        GetWorld()->GetTimerManager().SetTimer(InitialMoveTimerHandle, this, 
+            &AAIRacerContoller::DelayedMoveToCurrentWaypoint, 0.5f, false, 0.0f);
     }
 
+    // Update racer movement and waypoint checking
     AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
     if (Racer && CurrentWaypoint && CurrentWaypoint->IsValidLowLevel())
     {
+        // Calculate direction and distance to current waypoint
         FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
         FVector RacerLocation = Racer->GetActorLocation();
         FVector Direction = (WaypointLocation - RacerLocation).GetSafeNormal();
         float Distance = FVector::Dist(RacerLocation, WaypointLocation);
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Distance to waypoint %s: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Distance to waypoint %s: %f"), 
+            *GetName(), *CurrentWaypoint->GetName(), Distance);
 
+        // Apply movement input towards waypoint
         Racer->AddMovementInput(Direction, 1.0f);
 
-        USphereComponent* WaypointSphere = Cast<USphereComponent>(CurrentWaypoint->GetComponentByClass(USphereComponent::StaticClass()));
+        // Check for waypoint overlap using sphere component
+        USphereComponent* WaypointSphere = Cast<USphereComponent>(
+            CurrentWaypoint->GetComponentByClass(USphereComponent::StaticClass()));
         if (WaypointSphere)
         {
+            // Check if racer is overlapping waypoint
             TArray<AActor*> OverlappingActors;
             WaypointSphere->GetOverlappingActors(OverlappingActors, AAIRacer::StaticClass());
             if (OverlappingActors.Contains(Racer))
             {
-                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Overlapped waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
+                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Overlapped waypoint %s"), 
+                    *GetName(), *CurrentWaypoint->GetName());
                 OnWaypointReached(CurrentWaypoint);
             }
             else
             {
-                UE_LOG(LogTemp, Verbose, TEXT("AIRacerContoller %s: No overlap with waypoint %s, distance: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
+                UE_LOG(LogTemp, Verbose, TEXT("AIRacerContoller %s: No overlap with waypoint %s, distance: %f"), 
+                    *GetName(), *CurrentWaypoint->GetName(), Distance);
             }
         }
+        // Fallback to distance-based waypoint checking
         else if (Distance < 50.0f)
         {
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached waypoint %s by distance"), *GetName(), *CurrentWaypoint->GetName());
+            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Reached waypoint %s by distance"), 
+                *GetName(), *CurrentWaypoint->GetName());
             OnWaypointReached(CurrentWaypoint);
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: No sphere component on waypoint %s, distance: %f"), *GetName(), *CurrentWaypoint->GetName(), Distance);
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: No sphere component on waypoint %s, distance: %f"), 
+                *GetName(), *CurrentWaypoint->GetName(), Distance);
         }
 
+        // Draw debug visualization
         DrawDebugLine(GetWorld(), RacerLocation, WaypointLocation, FColor::Cyan, false, 0.1f, 0, 2.f);
         DrawDebugSphere(GetWorld(), WaypointLocation, 50.f, 12, FColor::Green, false, 0.1f);
     }
+    // Handle invalid waypoint
     else if (Racer && (!CurrentWaypoint || !CurrentWaypoint->IsValidLowLevel()))
     {
+        // Try to recover waypoint in graph navigation mode
         if (bUseGraphNavigation && AdvancedRaceManager && AdvancedRaceManager->Waypoints.Num() > 0)
         {
             CurrentWaypoint = AdvancedRaceManager->GetWaypoint(0);
             if (CurrentWaypoint && CurrentWaypoint->IsValidLowLevel())
             {
-                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Fallback set CurrentWaypoint to %s"), *GetName(), *CurrentWaypoint->GetName());
+                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Fallback set CurrentWaypoint to %s"), 
+                    *GetName(), *CurrentWaypoint->GetName());
             }
         }
+        // Try to recover waypoint in simple navigation mode
         else if (!bUseGraphNavigation && LinkedList)
         {
             CurrentWaypoint = Cast<AWaypoint>(LinkedList->GetFirst());
             if (CurrentWaypoint && CurrentWaypoint->IsValidLowLevel())
             {
-                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Fallback set CurrentWaypoint to %s"), *GetName(), *CurrentWaypoint->GetName());
+                UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Fallback set CurrentWaypoint to %s"), 
+                    *GetName(), *CurrentWaypoint->GetName());
             }
         }
     }
@@ -365,38 +432,260 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
-    FVector Start = ControlledPawn->GetActorLocation();
-    FVector End = CurrentWaypoint->GetActorLocation();
-    float DistanceToWaypoint = FVector::Dist(Start, End);
-
-    UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moving to waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
-    UE_LOG(LogTemp, Log, TEXT("  - Distance to waypoint: %.2f"), DistanceToWaypoint);
-    UE_LOG(LogTemp, Log, TEXT("  - Start Location: %s"), *Start.ToString());
-    UE_LOG(LogTemp, Log, TEXT("  - End Location: %s"), *End.ToString());
-
-    // Use direct movement with acceptance radius
-    auto MoveResult = MoveToLocation(End, 200.0f, true, true, false, true);
-    switch (MoveResult)
+    AAIRacer* Racer = Cast<AAIRacer>(ControlledPawn);
+    if (!Racer)
     {
-    case EPathFollowingRequestResult::Failed:
-        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: MoveToLocation FAILED for waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
-        UE_LOG(LogTemp, Warning, TEXT("  - Falling back to direct movement"));
-        // If movement fails, use direct input
-        if (AAIRacer* Racer = Cast<AAIRacer>(ControlledPawn))
-        {
-            FVector Direction = (End - Start).GetSafeNormal();
-            Racer->AddMovementInput(Direction, 1.0f);
-            UE_LOG(LogTemp, Log, TEXT("  - Direct movement direction: %s"), *Direction.ToString());
-        }
-        break;
-    case EPathFollowingRequestResult::AlreadyAtGoal:
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Already at waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
-        OnWaypointReached(CurrentWaypoint);
-        break;
-    case EPathFollowingRequestResult::RequestSuccessful:
-        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Successfully started moving to waypoint %s"), *GetName(), *CurrentWaypoint->GetName());
-        break;
+        return;
     }
 
-    DrawDebugLine(GetWorld(), Start, End, FColor::Cyan, false, 5.f, 0, 2.f);
+    FVector Start = ControlledPawn->GetActorLocation();
+    FVector End = CurrentWaypoint->GetActorLocation();
+
+    // Log initial state
+    UE_LOG(LogTemp, Warning, TEXT("=== AI Racer Movement Debug (%s) ==="), *GetName());
+    UE_LOG(LogTemp, Warning, TEXT("Current Position: %s"), *Start.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("Target Waypoint: %s at %s"), *CurrentWaypoint->GetName(), *End.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("Direct Distance: %.2f"), FVector::Dist(Start, End));
+
+    if (UCharacterMovementComponent* MovementComp = Racer->GetCharacterMovement())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Movement State:"));
+        UE_LOG(LogTemp, Warning, TEXT("  Current Speed: %.2f"), MovementComp->Velocity.Size());
+        UE_LOG(LogTemp, Warning, TEXT("  Max Speed: %.2f"), MovementComp->MaxWalkSpeed);
+        UE_LOG(LogTemp, Warning, TEXT("  Acceleration: %.2f"), MovementComp->MaxAcceleration);
+        UE_LOG(LogTemp, Warning, TEXT("  Current Velocity: %s"), *MovementComp->Velocity.ToString());
+    }
+
+    // Get the navigation system
+    UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (!NavSystem)
+    {
+        UE_LOG(LogTemp, Error, TEXT("No Navigation System available!"));
+        return;
+    }
+
+    // Log nav system state
+    UE_LOG(LogTemp, Warning, TEXT("Navigation System Status:"));
+    ANavigationData* NavData = NavSystem->GetDefaultNavDataInstance();
+    if (NavData)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("  Nav Data: %s"), *NavData->GetName());
+        
+        FNavLocation ProjectedStartLoc;
+        FNavLocation ProjectedEndLoc;
+        NavSystem->ProjectPointToNavigation(Start, ProjectedStartLoc, NavData->GetDefaultQueryExtent());
+        NavSystem->ProjectPointToNavigation(End, ProjectedEndLoc, NavData->GetDefaultQueryExtent());
+        
+        FVector ProjectedStart = ProjectedStartLoc.Location;
+        FVector ProjectedEnd = ProjectedEndLoc.Location;
+        
+        UE_LOG(LogTemp, Warning, TEXT("  Projected Start: %s"), *ProjectedStart.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("  Projected End: %s"), *ProjectedEnd.ToString());
+
+        // Create path finding query with proper constructor
+        FPathFindingQuery TestQuery(this, *NavData, ProjectedStart, ProjectedEnd);
+        TestQuery.SetAllowPartialPaths(true);
+        UE_LOG(LogTemp, Warning, TEXT("  Start on NavMesh: %s"), NavSystem->TestPathSync(TestQuery) ? TEXT("Yes") : TEXT("No"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("No Navigation Data available!"));
+    }
+
+    // Create path finding request with proper constructor
+    FPathFindingQuery Query(this, *NavData, Start, End);
+    Query.SetAllowPartialPaths(true);
+    Query.NavData = NavData;
+    
+    // Set up navigation filters
+    FNavigationQueryFilter Filter;
+    Filter.SetMaxSearchNodes(1000);
+    Query.QueryFilter = &Filter;
+    
+    // Find path
+    FPathFindingResult Result = NavSystem->FindPathSync(Query);
+    UE_LOG(LogTemp, Warning, TEXT("Path Finding Result:"));
+    UE_LOG(LogTemp, Warning, TEXT("  Success: %s"), Result.IsSuccessful() ? TEXT("Yes") : TEXT("No"));
+    UE_LOG(LogTemp, Warning, TEXT("  Path Valid: %s"), Result.Path.IsValid() ? TEXT("Yes") : TEXT("No"));
+
+    if (Result.IsSuccessful() && Result.Path.IsValid())
+    {
+        const TArray<FNavPathPoint>& PathPoints = Result.Path->GetPathPoints();
+        UE_LOG(LogTemp, Warning, TEXT("  Path Points: %d"), PathPoints.Num());
+        
+        // Validate and adjust path points
+        TArray<FNavPathPoint> AdjustedPathPoints;
+        float LastValidZ = Start.Z;
+        
+        for (int32 i = 0; i < PathPoints.Num(); i++)
+        {
+            FNavPathPoint AdjustedPoint = PathPoints[i];
+            
+            // Project point to nav mesh
+            FNavLocation ProjectedLocation;
+            if (NavSystem->ProjectPointToNavigation(PathPoints[i].Location, ProjectedLocation, NavData->GetDefaultQueryExtent()))
+            {
+                // Keep some height above nav mesh
+                AdjustedPoint.Location.Z = ProjectedLocation.Location.Z + 50.0f;
+            }
+            else
+            {
+                // If projection fails, interpolate height from last valid point
+                AdjustedPoint.Location.Z = LastValidZ;
+            }
+            
+            LastValidZ = AdjustedPoint.Location.Z;
+            AdjustedPathPoints.Add(AdjustedPoint);
+            
+            // Draw debug visualization
+            DrawDebugSphere(
+                GetWorld(),
+                AdjustedPoint.Location,
+                25.0f,
+                12,
+                FColor::Yellow,
+                false,
+                2.0f
+            );
+            
+            if (i < AdjustedPathPoints.Num() - 1)
+            {
+                DrawDebugLine(
+                    GetWorld(),
+                    AdjustedPoint.Location,
+                    AdjustedPathPoints[i + 1].Location,
+                    FColor::Green,
+                    false,
+                    2.0f,
+                    0,
+                    3.0f
+                );
+            }
+        }
+        
+        // Use adjusted path for movement
+        if (AAIRacer* Racer = Cast<AAIRacer>(GetPawn()))
+        {
+            // Calculate path characteristics
+            float TotalPathLength = 0.0f;
+            float MaxHeightDifference = 0.0f;
+            
+            for (int32 i = 0; i < AdjustedPathPoints.Num() - 1; i++)
+            {
+                TotalPathLength += FVector::Dist(AdjustedPathPoints[i].Location, AdjustedPathPoints[i + 1].Location);
+                float HeightDiff = FMath::Abs(AdjustedPathPoints[i + 1].Location.Z - AdjustedPathPoints[i].Location.Z);
+                MaxHeightDifference = FMath::Max(MaxHeightDifference, HeightDiff);
+            }
+            
+            // Adjust movement based on path characteristics
+            if (UCharacterMovementComponent* MovementComp = Racer->GetCharacterMovement())
+            {
+                // Reduce speed for significant height changes
+                float SpeedMultiplier = 1.0f;
+                if (MaxHeightDifference > 50.0f)
+                {
+                    SpeedMultiplier = FMath::Max(0.6f, 1.0f - (MaxHeightDifference / 200.0f));
+                }
+                
+                MovementComp->MaxWalkSpeed = Racer->MaxSpeed * SpeedMultiplier;
+                UE_LOG(LogTemp, Warning, TEXT("  Path Analysis:"));
+                UE_LOG(LogTemp, Warning, TEXT("    - Total Length: %.2f"), TotalPathLength);
+                UE_LOG(LogTemp, Warning, TEXT("    - Max Height Difference: %.2f"), MaxHeightDifference);
+                UE_LOG(LogTemp, Warning, TEXT("    - Speed Multiplier: %.2f"), SpeedMultiplier);
+            }
+        }
+        
+        // Use UE4's built-in path following with adjusted acceptance radius
+        EPathFollowingRequestResult::Type MoveResult = MoveToLocation(
+            End,
+            150.0f, // Increased acceptance radius
+            true,
+            true,
+            true,
+            true
+        );
+
+        UE_LOG(LogTemp, Warning, TEXT("Move Request Result: %s"), 
+            MoveResult == EPathFollowingRequestResult::RequestSuccessful ? TEXT("Success") :
+            MoveResult == EPathFollowingRequestResult::AlreadyAtGoal ? TEXT("Already At Goal") :
+            TEXT("Failed"));
+
+        // Draw debug path
+        DrawDebugDirectionalArrow(
+            GetWorld(),
+            Start,
+            End,
+            250.0f,  // Arrow size
+            FColor::Blue,
+            false,   // Persistent
+            2.0f,    // Duration
+            0,       // DepthPriority
+            5.0f     // Thickness
+        );
+
+        // Adjust speed based on path characteristics
+        if (UCrowdFollowingComponent* CrowdFollowing = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
+        {
+            // Calculate path curvature for the next few points
+            float MaxCurvature = 0.0f;
+            const int32 LookAheadPoints = FMath::Min(5, PathPoints.Num() - 1);
+            
+            for (int32 i = 0; i < LookAheadPoints - 1; i++)
+            {
+                FVector CurrentDir = (PathPoints[i + 1].Location - PathPoints[i].Location).GetSafeNormal();
+                FVector NextDir = (PathPoints[i + 2].Location - PathPoints[i + 1].Location).GetSafeNormal();
+                float Curvature = FMath::Acos(FVector::DotProduct(CurrentDir, NextDir));
+                MaxCurvature = FMath::Max(MaxCurvature, Curvature);
+            }
+
+            UE_LOG(LogTemp, Warning, TEXT("Path Analysis:"));
+            UE_LOG(LogTemp, Warning, TEXT("  Max Curvature: %.2f degrees"), FMath::RadiansToDegrees(MaxCurvature));
+
+            // Adjust speed based on curvature
+            float SpeedMultiplier = 1.0f;
+            if (MaxCurvature > PI / 6) // 30 degrees
+            {
+                SpeedMultiplier = FMath::Max(0.4f, 1.0f - (MaxCurvature / PI));
+            }
+
+            UE_LOG(LogTemp, Warning, TEXT("  Speed Multiplier: %.2f"), SpeedMultiplier);
+
+            // Apply speed adjustment
+            if (UCharacterMovementComponent* MovementComp = Racer->GetCharacterMovement())
+            {
+                MovementComp->MaxWalkSpeed = Racer->MaxSpeed * SpeedMultiplier;
+                UE_LOG(LogTemp, Warning, TEXT("  Adjusted Max Speed: %.2f"), MovementComp->MaxWalkSpeed);
+            }
+
+            // Update crowd following parameters
+            CrowdFollowing->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High);
+            CrowdFollowing->SetCrowdSeparationWeight(1.2f);
+            CrowdFollowing->SetCrowdCollisionQueryRange(150.0f);
+
+            UE_LOG(LogTemp, Warning, TEXT("Crowd Following Settings:"));
+            UE_LOG(LogTemp, Warning, TEXT("  Separation Range: 150.0"));
+            UE_LOG(LogTemp, Warning, TEXT("  Separation Weight: 1.2"));
+            UE_LOG(LogTemp, Warning, TEXT("  Avoidance Quality: High"));
+        }
+
+        // Debug visualization
+        if (CVarShowDebugPath.GetValueOnGameThread())
+        {
+            for (int32 i = 0; i < PathPoints.Num() - 1; i++)
+            {
+                DrawDebugLine(GetWorld(), PathPoints[i].Location, PathPoints[i + 1].Location,
+                    FColor::Blue, false, 0.1f, 0, 1.0f);
+                DrawDebugSphere(GetWorld(), PathPoints[i].Location, 10.0f, 8, FColor::Red, false, 0.1f);
+            }
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Path finding failed, using fallback direct movement"));
+        // Fallback behavior if path finding fails
+        FVector Direction = (End - Start).GetSafeNormal();
+        Racer->AddMovementInput(Direction, 1.0f);
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("=== End Movement Debug ===\n"));
 }
