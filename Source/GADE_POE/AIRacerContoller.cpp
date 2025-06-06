@@ -23,6 +23,7 @@
 #include "AI/Navigation/NavigationTypes.h"
 #include "Navigation/CrowdManager.h"
 #include "Navigation/CrowdFollowingComponent.h"
+#include "NavFilters/NavigationQueryFilter.h"
 
 AAIRacerContoller::AAIRacerContoller()
 {
@@ -432,30 +433,6 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
-    AAIRacer* Racer = Cast<AAIRacer>(ControlledPawn);
-    if (!Racer)
-    {
-        return;
-    }
-
-    FVector Start = ControlledPawn->GetActorLocation();
-    FVector End = CurrentWaypoint->GetActorLocation();
-
-    // Log initial state
-    UE_LOG(LogTemp, Warning, TEXT("=== AI Racer Movement Debug (%s) ==="), *GetName());
-    UE_LOG(LogTemp, Warning, TEXT("Current Position: %s"), *Start.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("Target Waypoint: %s at %s"), *CurrentWaypoint->GetName(), *End.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("Direct Distance: %.2f"), FVector::Dist(Start, End));
-
-    if (UCharacterMovementComponent* MovementComp = Racer->GetCharacterMovement())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Movement State:"));
-        UE_LOG(LogTemp, Warning, TEXT("  Current Speed: %.2f"), MovementComp->Velocity.Size());
-        UE_LOG(LogTemp, Warning, TEXT("  Max Speed: %.2f"), MovementComp->MaxWalkSpeed);
-        UE_LOG(LogTemp, Warning, TEXT("  Acceleration: %.2f"), MovementComp->MaxAcceleration);
-        UE_LOG(LogTemp, Warning, TEXT("  Current Velocity: %s"), *MovementComp->Velocity.ToString());
-    }
-
     // Get the navigation system
     UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
     if (!NavSystem)
@@ -464,228 +441,89 @@ void AAIRacerContoller::MoveToCurrentWaypoint()
         return;
     }
 
-    // Log nav system state
-    UE_LOG(LogTemp, Warning, TEXT("Navigation System Status:"));
-    ANavigationData* NavData = NavSystem->GetDefaultNavDataInstance();
-    if (NavData)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("  Nav Data: %s"), *NavData->GetName());
-        
-        FNavLocation ProjectedStartLoc;
-        FNavLocation ProjectedEndLoc;
-        NavSystem->ProjectPointToNavigation(Start, ProjectedStartLoc, NavData->GetDefaultQueryExtent());
-        NavSystem->ProjectPointToNavigation(End, ProjectedEndLoc, NavData->GetDefaultQueryExtent());
-        
-        FVector ProjectedStart = ProjectedStartLoc.Location;
-        FVector ProjectedEnd = ProjectedEndLoc.Location;
-        
-        UE_LOG(LogTemp, Warning, TEXT("  Projected Start: %s"), *ProjectedStart.ToString());
-        UE_LOG(LogTemp, Warning, TEXT("  Projected End: %s"), *ProjectedEnd.ToString());
+    // Get current positions
+    FVector RacerLocation = ControlledPawn->GetActorLocation();
+    FVector WaypointLocation = CurrentWaypoint->GetActorLocation();
 
-        // Create path finding query with proper constructor
-        FPathFindingQuery TestQuery(this, *NavData, ProjectedStart, ProjectedEnd);
-        TestQuery.SetAllowPartialPaths(true);
-        UE_LOG(LogTemp, Warning, TEXT("  Start on NavMesh: %s"), NavSystem->TestPathSync(TestQuery) ? TEXT("Yes") : TEXT("No"));
+    // Project Racer to NavMesh - THIS IS CRUCIAL
+    FNavLocation NavLocation;
+    bool bIsOnNavMesh = NavSystem->ProjectPointToNavigation(RacerLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
+    if (bIsOnNavMesh)
+    {
+        ControlledPawn->SetActorLocation(NavLocation.Location);
+        RacerLocation = NavLocation.Location;
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Projected racer to NavMesh at %s"), 
+            *GetName(), *RacerLocation.ToString());
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("No Navigation Data available!"));
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Racer at %s is not on NavMesh"), 
+            *GetName(), *RacerLocation.ToString());
+        return;
     }
 
-    // Create path finding request with proper constructor
-    FPathFindingQuery Query(this, *NavData, Start, End);
+    // Project Waypoint to NavMesh - THIS IS CRUCIAL
+    bIsOnNavMesh = NavSystem->ProjectPointToNavigation(WaypointLocation, NavLocation, FVector(500.0f, 500.0f, 500.0f));
+    if (bIsOnNavMesh)
+    {
+        WaypointLocation = NavLocation.Location;
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Projected waypoint to NavMesh at %s"), 
+            *GetName(), *WaypointLocation.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Waypoint at %s is not on NavMesh"), 
+            *GetName(), *WaypointLocation.ToString());
+        return;
+    }
+
+    // Get navigation data
+    ANavigationData* NavData = NavSystem->GetDefaultNavDataInstance();
+    if (!NavData)
+    {
+        UE_LOG(LogTemp, Error, TEXT("No Navigation Data available!"));
+        return;
+    }
+
+    // Create path finding query with projected locations
+    FPathFindingQuery Query(this, *NavData, RacerLocation, WaypointLocation);
     Query.SetAllowPartialPaths(true);
-    Query.NavData = NavData;
-    
-    // Set up navigation filters
-    FNavigationQueryFilter Filter;
-    Filter.SetMaxSearchNodes(1000);
-    Query.QueryFilter = &Filter;
     
     // Find path
     FPathFindingResult Result = NavSystem->FindPathSync(Query);
-    UE_LOG(LogTemp, Warning, TEXT("Path Finding Result:"));
-    UE_LOG(LogTemp, Warning, TEXT("  Success: %s"), Result.IsSuccessful() ? TEXT("Yes") : TEXT("No"));
-    UE_LOG(LogTemp, Warning, TEXT("  Path Valid: %s"), Result.Path.IsValid() ? TEXT("Yes") : TEXT("No"));
-
+    
     if (Result.IsSuccessful() && Result.Path.IsValid())
     {
-        const TArray<FNavPathPoint>& PathPoints = Result.Path->GetPathPoints();
-        UE_LOG(LogTemp, Warning, TEXT("  Path Points: %d"), PathPoints.Num());
-        
-        // Validate and adjust path points
-        TArray<FNavPathPoint> AdjustedPathPoints;
-        float LastValidZ = Start.Z;
-        
-        for (int32 i = 0; i < PathPoints.Num(); i++)
-        {
-            FNavPathPoint AdjustedPoint = PathPoints[i];
-            
-            // Project point to nav mesh
-            FNavLocation ProjectedLocation;
-            if (NavSystem->ProjectPointToNavigation(PathPoints[i].Location, ProjectedLocation, NavData->GetDefaultQueryExtent()))
-            {
-                // Keep some height above nav mesh
-                AdjustedPoint.Location.Z = ProjectedLocation.Location.Z + 50.0f;
-            }
-            else
-            {
-                // If projection fails, interpolate height from last valid point
-                AdjustedPoint.Location.Z = LastValidZ;
-            }
-            
-            LastValidZ = AdjustedPoint.Location.Z;
-            AdjustedPathPoints.Add(AdjustedPoint);
-            
-            // Draw debug visualization
-            DrawDebugSphere(
-                GetWorld(),
-                AdjustedPoint.Location,
-                25.0f,
-                12,
-                FColor::Yellow,
-                false,
-                2.0f
-            );
-            
-            if (i < AdjustedPathPoints.Num() - 1)
-            {
-                DrawDebugLine(
-                    GetWorld(),
-                    AdjustedPoint.Location,
-                    AdjustedPathPoints[i + 1].Location,
-                    FColor::Green,
-                    false,
-                    2.0f,
-                    0,
-                    3.0f
-                );
-            }
-        }
-        
-        // Use adjusted path for movement
-        if (AAIRacer* Racer = Cast<AAIRacer>(GetPawn()))
-        {
-            // Calculate path characteristics
-            float TotalPathLength = 0.0f;
-            float MaxHeightDifference = 0.0f;
-            
-            for (int32 i = 0; i < AdjustedPathPoints.Num() - 1; i++)
-            {
-                TotalPathLength += FVector::Dist(AdjustedPathPoints[i].Location, AdjustedPathPoints[i + 1].Location);
-                float HeightDiff = FMath::Abs(AdjustedPathPoints[i + 1].Location.Z - AdjustedPathPoints[i].Location.Z);
-                MaxHeightDifference = FMath::Max(MaxHeightDifference, HeightDiff);
-            }
-            
-            // Adjust movement based on path characteristics
-            if (UCharacterMovementComponent* MovementComp = Racer->GetCharacterMovement())
-            {
-                // Reduce speed for significant height changes
-                float SpeedMultiplier = 1.0f;
-                if (MaxHeightDifference > 50.0f)
-                {
-                    SpeedMultiplier = FMath::Max(0.6f, 1.0f - (MaxHeightDifference / 200.0f));
-                }
-                
-                MovementComp->MaxWalkSpeed = Racer->MaxSpeed * SpeedMultiplier;
-                UE_LOG(LogTemp, Warning, TEXT("  Path Analysis:"));
-                UE_LOG(LogTemp, Warning, TEXT("    - Total Length: %.2f"), TotalPathLength);
-                UE_LOG(LogTemp, Warning, TEXT("    - Max Height Difference: %.2f"), MaxHeightDifference);
-                UE_LOG(LogTemp, Warning, TEXT("    - Speed Multiplier: %.2f"), SpeedMultiplier);
-            }
-        }
-        
-        // Use UE4's built-in path following with adjusted acceptance radius
+        // Use a larger acceptance radius for smoother movement
         EPathFollowingRequestResult::Type MoveResult = MoveToLocation(
-            End,
-            150.0f, // Increased acceptance radius
-            true,
-            true,
-            true,
-            true
+            WaypointLocation,
+            200.0f,  // Acceptance radius
+            true,    // Stop on overlap
+            true,    // Use path finding
+            false,   // Project destination to navigation
+            true     // Can strafe
         );
 
-        UE_LOG(LogTemp, Warning, TEXT("Move Request Result: %s"), 
-            MoveResult == EPathFollowingRequestResult::RequestSuccessful ? TEXT("Success") :
-            MoveResult == EPathFollowingRequestResult::AlreadyAtGoal ? TEXT("Already At Goal") :
-            TEXT("Failed"));
-
-        // Draw debug path
-        DrawDebugDirectionalArrow(
-            GetWorld(),
-            Start,
-            End,
-            250.0f,  // Arrow size
-            FColor::Blue,
-            false,   // Persistent
-            2.0f,    // Duration
-            0,       // DepthPriority
-            5.0f     // Thickness
-        );
-
-        // Adjust speed based on path characteristics
-        if (UCrowdFollowingComponent* CrowdFollowing = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
+        switch (MoveResult)
         {
-            // Calculate path curvature for the next few points
-            float MaxCurvature = 0.0f;
-            const int32 LookAheadPoints = FMath::Min(5, PathPoints.Num() - 1);
-            
-            for (int32 i = 0; i < LookAheadPoints - 1; i++)
-            {
-                FVector CurrentDir = (PathPoints[i + 1].Location - PathPoints[i].Location).GetSafeNormal();
-                FVector NextDir = (PathPoints[i + 2].Location - PathPoints[i + 1].Location).GetSafeNormal();
-                float Curvature = FMath::Acos(FVector::DotProduct(CurrentDir, NextDir));
-                MaxCurvature = FMath::Max(MaxCurvature, Curvature);
-            }
-
-            UE_LOG(LogTemp, Warning, TEXT("Path Analysis:"));
-            UE_LOG(LogTemp, Warning, TEXT("  Max Curvature: %.2f degrees"), FMath::RadiansToDegrees(MaxCurvature));
-
-            // Adjust speed based on curvature
-            float SpeedMultiplier = 1.0f;
-            if (MaxCurvature > PI / 6) // 30 degrees
-            {
-                SpeedMultiplier = FMath::Max(0.4f, 1.0f - (MaxCurvature / PI));
-            }
-
-            UE_LOG(LogTemp, Warning, TEXT("  Speed Multiplier: %.2f"), SpeedMultiplier);
-
-            // Apply speed adjustment
-            if (UCharacterMovementComponent* MovementComp = Racer->GetCharacterMovement())
-            {
-                MovementComp->MaxWalkSpeed = Racer->MaxSpeed * SpeedMultiplier;
-                UE_LOG(LogTemp, Warning, TEXT("  Adjusted Max Speed: %.2f"), MovementComp->MaxWalkSpeed);
-            }
-
-            // Update crowd following parameters
-            CrowdFollowing->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High);
-            CrowdFollowing->SetCrowdSeparationWeight(1.2f);
-            CrowdFollowing->SetCrowdCollisionQueryRange(150.0f);
-
-            UE_LOG(LogTemp, Warning, TEXT("Crowd Following Settings:"));
-            UE_LOG(LogTemp, Warning, TEXT("  Separation Range: 150.0"));
-            UE_LOG(LogTemp, Warning, TEXT("  Separation Weight: 1.2"));
-            UE_LOG(LogTemp, Warning, TEXT("  Avoidance Quality: High"));
-        }
-
-        // Debug visualization
-        if (CVarShowDebugPath.GetValueOnGameThread())
-        {
-            for (int32 i = 0; i < PathPoints.Num() - 1; i++)
-            {
-                DrawDebugLine(GetWorld(), PathPoints[i].Location, PathPoints[i + 1].Location,
-                    FColor::Blue, false, 0.1f, 0, 1.0f);
-                DrawDebugSphere(GetWorld(), PathPoints[i].Location, 10.0f, 8, FColor::Red, false, 0.1f);
-            }
+        case EPathFollowingRequestResult::Failed:
+            UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: MoveToLocation failed for waypoint %s"), 
+                *GetName(), *CurrentWaypoint->GetName());
+            break;
+        case EPathFollowingRequestResult::AlreadyAtGoal:
+            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Already at waypoint %s"), 
+                *GetName(), *CurrentWaypoint->GetName());
+            OnWaypointReached(CurrentWaypoint);
+            break;
+        case EPathFollowingRequestResult::RequestSuccessful:
+            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller %s: Moving to waypoint %s"), 
+                *GetName(), *CurrentWaypoint->GetName());
+            break;
         }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Path finding failed, using fallback direct movement"));
-        // Fallback behavior if path finding fails
-        FVector Direction = (End - Start).GetSafeNormal();
-        Racer->AddMovementInput(Direction, 1.0f);
+        UE_LOG(LogTemp, Warning, TEXT("AIRacerContoller %s: Failed to find path to waypoint %s"), 
+            *GetName(), *CurrentWaypoint->GetName());
     }
-
-    UE_LOG(LogTemp, Warning, TEXT("=== End Movement Debug ===\n"));
 }
