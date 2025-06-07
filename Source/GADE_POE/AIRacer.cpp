@@ -20,197 +20,87 @@ AAIRacer::AAIRacer()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Set up collision capsule
+    // Configure the capsule component (already the root component from ACharacter)
     UCapsuleComponent* Capsule = GetCapsuleComponent();
     if (Capsule)
     {
         Capsule->SetCapsuleSize(40.0f, 96.0f);
         Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Capsule->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
-        
-        // Configure collision responses
-        FCollisionResponseContainer ResponseContainer;
-        ResponseContainer.SetAllChannels(ECR_Block);
-        ResponseContainer.SetResponse(ECC_Pawn, ECR_Overlap);  // Allow racer overlap
-        ResponseContainer.SetResponse(ECC_Camera, ECR_Ignore); // Ignore camera
-        Capsule->SetCollisionResponseToChannels(ResponseContainer);
-        
-        Capsule->SetNotifyRigidBodyCollision(true);
-        Capsule->SetGenerateOverlapEvents(true);
+        Capsule->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Block);
+        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Block);
+        Capsule->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
     }
 
-    // Set up visual mesh
+    // Set up the skeletal mesh as a child of the capsule
     RacerMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RacerMesh"));
     RacerMesh->SetupAttachment(RootComponent);
-    RacerMesh->SetCollisionProfileName(TEXT("NoCollision")); 
+    RacerMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
-    // Set up physics body
-    PhysicsBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsBody"));
-    PhysicsBody->SetupAttachment(RootComponent);
-    PhysicsBody->SetSimulatePhysics(false);
-    PhysicsBody->SetEnableGravity(true);
-    PhysicsBody->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-
-    // Set up movement
+    // Configure the character movement component
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {
-        // Basic movement settings
         Movement->bOrientRotationToMovement = true;
-        Movement->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
-        Movement->bUseControllerDesiredRotation = true;
-        
-        // Ground movement
+        Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+        Movement->bUseControllerDesiredRotation = false;
         Movement->NavAgentProps.bCanWalk = true;
-        Movement->NavAgentProps.bCanFly = false;
         Movement->bCanWalkOffLedges = false;
-        Movement->SetMovementMode(MOVE_Walking);
-        Movement->GravityScale = 8.0f;
-        
-        // Speed settings
-        Movement->MaxWalkSpeed = 4000.0f;      // Base speed
-        Movement->MaxAcceleration = 4000.0f;   // Base acceleration
-        Movement->BrakingDecelerationWalking = 8000.0f;  // Braking power
-        Movement->GroundFriction = 8.0f;       // Ground friction
-        
-        // Navigation settings
-        Movement->NavAgentProps.AgentRadius = 50.0f;
-        Movement->NavAgentProps.AgentHeight = 96.0f;
-        Movement->bUseRVOAvoidance = true;
-        Movement->AvoidanceConsiderationRadius = 200.0f;
-        Movement->AvoidanceWeight = 1.0f;
-        
-        // Physics tweaks
-        Movement->Mass = 100.0f;
-        Movement->bMaintainHorizontalGroundVelocity = true;
-        Movement->bSnapToPlaneAtStart = true;
-        Movement->SetWalkableFloorAngle(50.0f);
-        Movement->bAlwaysCheckFloor = true;
-        Movement->bUseFlatBaseForFloorChecks = true;
-        Movement->MinAnalogWalkSpeed = 0.0f;
-        Movement->bEnablePhysicsInteraction = true;
-
-        // Allow for speed boosts
-        Movement->MaxCustomMovementSpeed = 4800.0f;
-        Movement->bRequestedMoveUseAcceleration = true;
     }
 
-    // Set up AI control
+    // Set the AI controller class
     AIControllerClass = AAIRacerContoller::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-    // Default to medium racer
+    // Default attributes
     RacerType = ERacerType::Medium;
-    MaxSpeed = 4000.0f;
-    MaxAcceleration = 4000.0f;
+    MaxSpeed = 600.0f;
+    MaxAcceleration = 500.0f;
 }
 
 void AAIRacer::BeginPlay()
 {
     Super::BeginPlay();
-    
-    // Set up racer-specific settings
     SetupRacerAttributes();
 
-    // Register with game state
+    // Register with GameState
     GameState = Cast<ABeginnerRaceGameState>(GetWorld()->GetGameState());
     if (GameState)
     {
         GameState->RegisterRacer(this);
-        UE_LOG(LogTemp, Log, TEXT("AIRacer %s: Registered with GameState"), *GetName());
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("AIRacer %s: Failed to find BeginnerRaceGameState."), *GetName());
-    }
-
-    // Log initial setup
-    UCharacterMovementComponent* Movement = GetCharacterMovement();
-    if (Movement)
-    {
-        UE_LOG(LogTemp, Log, TEXT("AIRacer %s Configuration:"), *GetName());
-        UE_LOG(LogTemp, Log, TEXT("  - Type: %s"), *UEnum::GetValueAsString(RacerType));
-        UE_LOG(LogTemp, Log, TEXT("  - MaxSpeed: %.2f"), Movement->MaxWalkSpeed);
-        UE_LOG(LogTemp, Log, TEXT("  - MaxAcceleration: %.2f"), Movement->MaxAcceleration);
-        UE_LOG(LogTemp, Log, TEXT("  - RotationRate: %s"), *Movement->RotationRate.ToString());
-        UE_LOG(LogTemp, Log, TEXT("  - BrakingDeceleration: %.2f"), Movement->BrakingDecelerationWalking);
-        UE_LOG(LogTemp, Log, TEXT("  - AvoidanceRadius: %.2f"), Movement->AvoidanceConsiderationRadius);
-        UE_LOG(LogTemp, Log, TEXT("  - AvoidanceWeight: %.2f"), Movement->AvoidanceWeight);
-        UE_LOG(LogTemp, Log, TEXT("  - AgentRadius: %.2f"), Movement->NavAgentProps.AgentRadius);
+        UE_LOG(LogTemp, Error, TEXT("AIRacer: Failed to find BeginnerRaceGameState."));
     }
 }
 
 void AAIRacer::SetupRacerAttributes()
 {
-    UCharacterMovementComponent* Movement = GetCharacterMovement();
-    if (!Movement) return;
-
-    // Base stats
-    float BaseSpeed = 4000.0f;
-    float BaseAccel = 4000.0f;
-    float AvoidanceRadius = 200.0f;
-
-    UE_LOG(LogTemp, Log, TEXT("AIRacer %s: Setting up attributes"), *GetName());
-
-    // Configure based on racer type
+    // Calculate attributes based on RacerType
     switch (RacerType)
     {
     case ERacerType::Fast:
-        // Fast racers: +20% speed/accel, better turning, stronger braking
-        MaxSpeed = BaseSpeed * 1.2f;
-        MaxAcceleration = BaseAccel * 1.2f;
-        if (Movement)
-        {
-            Movement->AvoidanceConsiderationRadius = AvoidanceRadius * 1.5f;
-            Movement->RotationRate = FRotator(0.0f, 900.0f, 0.0f);
-            Movement->BrakingDecelerationWalking = 12000.0f;
-            UE_LOG(LogTemp, Log, TEXT("AIRacer %s: Configured as Fast type"), *GetName());
-        }
+        MaxSpeed = 4000.0f;
+        MaxAcceleration = 900.0f;
         break;
-
     case ERacerType::Medium:
-        // Medium racers: Balanced stats
-        MaxSpeed = BaseSpeed;
-        MaxAcceleration = BaseAccel;
-        if (Movement)
-        {
-            Movement->AvoidanceConsiderationRadius = AvoidanceRadius * 1.2f;
-            Movement->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
-            Movement->BrakingDecelerationWalking = 8000.0f;
-            UE_LOG(LogTemp, Log, TEXT("AIRacer %s: Configured as Medium type"), *GetName());
-        }
+        MaxSpeed = 4000.0f;
+        MaxAcceleration = 500.0f;
         break;
-
     case ERacerType::Slow:
-        // Slow racers: -20% speed/accel, slower turning, gentler braking
-        MaxSpeed = BaseSpeed * 0.8f;
-        MaxAcceleration = BaseAccel * 0.8f;
-        if (Movement)
-        {
-            Movement->AvoidanceConsiderationRadius = AvoidanceRadius;
-            Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
-            Movement->BrakingDecelerationWalking = 6000.0f;
-            UE_LOG(LogTemp, Log, TEXT("AIRacer %s: Configured as Slow type"), *GetName());
-        }
+        MaxSpeed = 4000.0f;
+        MaxAcceleration = 50.0f;
         break;
     }
 
-    // Apply settings
+    // Update movement component attributes
+    UCharacterMovementComponent* Movement = GetCharacterMovement();
     if (Movement)
     {
         Movement->MaxWalkSpeed = MaxSpeed;
         Movement->MaxAcceleration = MaxAcceleration;
-        Movement->MaxCustomMovementSpeed = MaxSpeed * 1.2f;  // Allow boost
-        Movement->AvoidanceWeight = 1.0f;
-        Movement->bUseRVOAvoidance = true;
-        Movement->bRequestedMoveUseAcceleration = true;
-
-        // Log final setup
-        UE_LOG(LogTemp, Log, TEXT("AIRacer %s: Final Movement Configuration:"), *GetName());
-        UE_LOG(LogTemp, Log, TEXT("  - MaxWalkSpeed: %.2f"), Movement->MaxWalkSpeed);
-        UE_LOG(LogTemp, Log, TEXT("  - MaxAcceleration: %.2f"), Movement->MaxAcceleration);
-        UE_LOG(LogTemp, Log, TEXT("  - MaxCustomSpeed: %.2f"), Movement->MaxCustomMovementSpeed);
-        UE_LOG(LogTemp, Log, TEXT("  - AvoidanceRadius: %.2f"), Movement->AvoidanceConsiderationRadius);
     }
 }
 

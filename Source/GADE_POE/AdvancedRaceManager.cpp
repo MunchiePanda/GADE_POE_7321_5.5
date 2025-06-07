@@ -88,6 +88,27 @@ void AAdvancedRaceManager::PopulateGraph()
         return;
     }
 
+    UE_LOG(LogTemp, Warning, TEXT("=== Advanced Race Track Waypoint Order ==="));
+    UE_LOG(LogTemp, Warning, TEXT("Track Layout:"));
+    UE_LOG(LogTemp, Warning, TEXT("Main Path: 0->1->2->3"));
+    UE_LOG(LogTemp, Warning, TEXT("Branch 1: 3->[4 or 5]->6->7->8"));
+    UE_LOG(LogTemp, Warning, TEXT("Branch 2: 8->[9 or 10]->11->0 (loop)"));
+    UE_LOG(LogTemp, Warning, TEXT(""));
+    UE_LOG(LogTemp, Warning, TEXT("Waypoint Positions:"));
+    
+    // Log all waypoint positions
+    for (int32 i = 0; i < Waypoints.Num(); i++)
+    {
+        if (Waypoints[i])
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Waypoint %d: %s at location %s"), 
+                i, 
+                *Waypoints[i]->GetName(), 
+                *Waypoints[i]->GetActorLocation().ToString());
+        }
+    }
+    UE_LOG(LogTemp, Warning, TEXT(""));
+
     // Branch 1: 3->4, 3->5, 4->6, 5->6
     if (Waypoints.Num() > 6)
     {
@@ -95,7 +116,11 @@ void AAdvancedRaceManager::PopulateGraph()
         Graph->AddEdge(Waypoints[2], Waypoints[4]); // 3->5
         Graph->AddEdge(Waypoints[3], Waypoints[5]); // 4->6
         Graph->AddEdge(Waypoints[4], Waypoints[5]); // 5->6
-        UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Added Branch 1 edges (3->4, 3->5, 4->6, 5->6)"));
+        UE_LOG(LogTemp, Warning, TEXT("Branch 1 Connections:"));
+        UE_LOG(LogTemp, Warning, TEXT("  3->4: %s -> %s"), *Waypoints[2]->GetName(), *Waypoints[3]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  3->5: %s -> %s"), *Waypoints[2]->GetName(), *Waypoints[4]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  4->6: %s -> %s"), *Waypoints[3]->GetName(), *Waypoints[5]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  5->6: %s -> %s"), *Waypoints[4]->GetName(), *Waypoints[5]->GetName());
     }
 
     // Branch 2: 8->9, 8->10, 9->11, 10->11
@@ -105,14 +130,19 @@ void AAdvancedRaceManager::PopulateGraph()
         Graph->AddEdge(Waypoints[7], Waypoints[9]);  // 8->10
         Graph->AddEdge(Waypoints[8], Waypoints[10]); // 9->11
         Graph->AddEdge(Waypoints[9], Waypoints[10]); // 10->11
-        UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Added Branch 2 edges (8->9, 8->10, 9->11, 10->11)"));
+        UE_LOG(LogTemp, Warning, TEXT("Branch 2 Connections:"));
+        UE_LOG(LogTemp, Warning, TEXT("  8->9:  %s -> %s"), *Waypoints[7]->GetName(), *Waypoints[8]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  8->10: %s -> %s"), *Waypoints[7]->GetName(), *Waypoints[9]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  9->11: %s -> %s"), *Waypoints[8]->GetName(), *Waypoints[10]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  10->11: %s -> %s"), *Waypoints[9]->GetName(), *Waypoints[10]->GetName());
     }
 
     // Loop: 11->0
     if (Waypoints.Num() > 11)
     {
         Graph->AddEdge(Waypoints[10], Waypoints[0]); // 11->0
-        UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Added loop edge (11->0)"));
+        UE_LOG(LogTemp, Warning, TEXT("Loop Connection:"));
+        UE_LOG(LogTemp, Warning, TEXT("  11->0: %s -> %s (back to start)"), *Waypoints[10]->GetName(), *Waypoints[0]->GetName());
     }
 
     // Main loop: 0->1, 1->2, 5->6, 6->7
@@ -122,10 +152,14 @@ void AAdvancedRaceManager::PopulateGraph()
         Graph->AddEdge(Waypoints[1], Waypoints[2]); // 1->2
         Graph->AddEdge(Waypoints[5], Waypoints[6]); // 5->6
         Graph->AddEdge(Waypoints[6], Waypoints[7]); // 6->7
-        UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Added main loop edges (0->1, 1->2, 5->6, 6->7)"));
+        UE_LOG(LogTemp, Warning, TEXT("Main Path Connections:"));
+        UE_LOG(LogTemp, Warning, TEXT("  0->1: %s -> %s (Start)"), *Waypoints[0]->GetName(), *Waypoints[1]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  1->2: %s -> %s"), *Waypoints[1]->GetName(), *Waypoints[2]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  5->6: %s -> %s"), *Waypoints[5]->GetName(), *Waypoints[6]->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("  6->7: %s -> %s"), *Waypoints[6]->GetName(), *Waypoints[7]->GetName());
     }
 
-    UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Graph populated with %d waypoints."), Waypoints.Num());
+    UE_LOG(LogTemp, Warning, TEXT("=== End of Waypoint Order ==="));
 }
 
 AWaypoint* AAdvancedRaceManager::GetWaypoint(int32 Index)

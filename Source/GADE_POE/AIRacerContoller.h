@@ -30,9 +30,11 @@ static TAutoConsoleVariable<int32> CVarShowDebugPath(
 // Forward declarations
 class AWaypointManager;
 class UCustomLinkedList;
+class AActor;
+class ABeginnerRaceGameState;
+class AAdvancedRaceManager;
 class AGraph;
 class AWaypoint;
-class ABeginnerRaceGameState;
 
 UCLASS()
 class GADE_POE_API AAIRacerContoller : public AAIController
@@ -104,7 +106,6 @@ protected:
     /** Handles actual movement logic to current waypoint */
     void MoveToCurrentWaypoint();
 
-private:
     /** Determines which navigation system to use */
     void DetermineNavigationType();
     
