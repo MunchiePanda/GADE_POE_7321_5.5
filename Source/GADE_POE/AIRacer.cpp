@@ -173,9 +173,8 @@ void AAIRacer::Tick(float DeltaTime)
 }
 
 /**
- * Updates the racer's movement behavior each frame
- * Handles speed adjustments, cornering, and collision avoidance
- * @param DeltaTime Time elapsed since last frame
+ Updates the racer's movement behavior each frame
+  Handles speed adjustments, cornering, and collision avoidance
  */
 void AAIRacer::UpdateRacingBehavior(float DeltaTime)
 {
@@ -237,9 +236,8 @@ void AAIRacer::UpdateRacingBehavior(float DeltaTime)
 }
 
 /**
- * Adjusts the racer's speed based on corner angle
- * Sharper corners result in more speed reduction
- * @param CornerAngle Angle of the upcoming corner in degrees
+ Adjusts the racer's speed based on corner angle
+ Sharper corners result in more speed reduction
  */
 void AAIRacer::AdjustSpeedForCorner(float CornerAngle)
 {
@@ -255,11 +253,9 @@ void AAIRacer::AdjustSpeedForCorner(float CornerAngle)
 }
 
 /**
- * Calculates the optimal speed based on corner angle and distance
- * Takes into account both the sharpness of the turn and distance to the corner
- * @param DistanceToCorner Distance to the next corner
- * @param CornerAngle Angle of the upcoming corner in degrees
- * @return The calculated desired speed
+ Calculates the optimal speed based on corner angle and distance
+Takes into account both the sharpness of the turn and distance to the corner
+
  */
 float AAIRacer::CalculateDesiredSpeed(float DistanceToCorner, float CornerAngle)
 {

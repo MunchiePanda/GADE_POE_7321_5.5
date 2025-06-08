@@ -4,36 +4,16 @@
 #include "AIRacerContoller.h"
 #include "Kismet/GameplayStatics.h"
 
-void ASpeedBoostPickup::ApplyEffect(AActor* Racer)
+void ASpeedBoostPickup::ApplyEffect(AActor* Actor)
 {
-    // Reset affected actors and original speed
-    AffectedPlayer = nullptr;
-    AffectedAIRacer = nullptr;
-    OriginalSpeed = 0.0f;
-
-    // Handle player character speed boost
-    if (APlayerHamster* Player = Cast<APlayerHamster>(Racer))
+    APlayerHamster* PlayerHamster = Cast<APlayerHamster>(Actor);
+    if (PlayerHamster)
     {
-        // Store original speed and apply boost
-        OriginalSpeed = Player->CurrentSpeed;
-        Player->CurrentSpeed *= SpeedMultiplier;
-        AffectedPlayer = Player;
-        UE_LOG(LogTemp, Log, TEXT("SpeedBoostPickup: Boosted Player speed from %f to %f"), OriginalSpeed, Player->CurrentSpeed);
-    }
-    // Handle AI character speed boost
-    else if (AAIRacer* AIRacer = Cast<AAIRacer>(Racer))
-    {
-        // Store original speed and apply boost
-        OriginalSpeed = AIRacer->MaxSpeed;
-        AIRacer->MaxSpeed *= SpeedMultiplier;
-        AffectedAIRacer = AIRacer;
-        UE_LOG(LogTemp, Log, TEXT("SpeedBoostPickup: Boosted AI speed from %f to %f"), OriginalSpeed, AIRacer->MaxSpeed);
-    }
-
-    // Set timer to reset speed after effect duration
-    if (AffectedPlayer || AffectedAIRacer)
-    {
-        GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ASpeedBoostPickup::ResetSpeed, EffectDuration, false);
+        float CurrentSpeed = PlayerHamster->GetSpeed();
+        float MaxSpeed = PlayerHamster->GetMaxSpeed();
+        float NewSpeed = FMath::Min(CurrentSpeed * SpeedMultiplier, MaxSpeed);
+        PlayerHamster->SetSpeed(NewSpeed);
+        UE_LOG(LogTemp, Log, TEXT("SpeedBoostPickup: Boosted speed from %f to %f"), CurrentSpeed, NewSpeed);
     }
 }
 
@@ -42,7 +22,7 @@ void ASpeedBoostPickup::ResetSpeed()
     // Reset player speed to original value
     if (AffectedPlayer)
     {
-        AffectedPlayer->CurrentSpeed = OriginalSpeed;
+        AffectedPlayer->SetSpeed(OriginalSpeed);
         UE_LOG(LogTemp, Log, TEXT("SpeedBoostPickup: Reset Player speed to %f"), OriginalSpeed);
         AffectedPlayer = nullptr;
     }

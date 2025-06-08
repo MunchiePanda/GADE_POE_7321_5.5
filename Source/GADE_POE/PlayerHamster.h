@@ -26,94 +26,103 @@ class GADE_POE_API APlayerHamster : public ACharacter
 
 public:
     APlayerHamster();
+    virtual void Tick(float DeltaTime) override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+    // Movement functions
+    void MoveForward(float Value);
+    void MoveRight(float Value);
+    void Brake(float Value);
+    void Turn(float Value);
+    void LookUp(float Value);
+    void SelectNextWaypoint();
+    void ConfirmWaypoint();
+    void TogglePauseMenu();
+
+    // Speed control functions
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    float GetSpeed() const;
+    
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    void SetSpeed(float NewSpeed);
+    
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    float GetMaxSpeed() const { return MaxSpeed; }
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spline")
+    USplineComponent* Spline;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> PauseMenuWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> EndUIWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UBeginnerRaceHUD> HUDClass;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 CurrentLap;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 CurrentWaypointIndex;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Race")
+    int32 PreviousWaypointIndex;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Race")
+    bool bIsPlayer = true;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Race")
+    int32 TotalWaypoints; // Total waypoints for graph navigation
 
 protected:
     virtual void BeginPlay() override;
 
-public:
-    virtual void Tick(float DeltaTime) override;
-    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-    // Called to bind functionality to input actions
-    void MoveForward(float Value);
-    void MoveRight(float Value);
-    void Brake(float Value);
-
-    void Turn(float Value);
-    void LookUp(float Value);
-    void SelectNextWaypoint(); // New function to cycle through waypoint choices
-    void ConfirmWaypoint(); // New function to confirm waypoint selection
-
-    void TogglePauseMenu();
-
-    UFUNCTION(BlueprintCallable, Category = "Movement")
-    float GetSpeed() const; // Function to get the speed
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spline")
-    USplineComponent* Spline; // Spline component
-
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> PauseMenuWidgetClass; // Class for the pause menu widget
-
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> EndUIWidgetClass; // Class for the end UI widget
-
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UBeginnerRaceHUD> HUDClass; // Class for the HUD widget
-
-    UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 CurrentLap; // Current lap
-
-    UPROPERTY(BlueprintReadOnly, Category = "Race")
-    int32 CurrentWaypointIndex; // Current waypoint index
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Race")
-    bool bIsPlayer = true; // Flag to indicate if this is the player hamster
-
-    float CurrentSpeed = 0.0f; // Current speed
-
-private:
     UPROPERTY(VisibleAnywhere, Category = "Components")
-    UStaticMeshComponent* HamsterMesh; // Visual mesh
+    UStaticMeshComponent* HamsterMesh;
 
     UPROPERTY(VisibleAnywhere, Category = "Physics")
-    UStaticMeshComponent* PhysicsBody; // Physics-enabled body for collisions
+    UStaticMeshComponent* PhysicsBody;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float TurnSpeed = 100.0f; // Speed at which the hamster turns
+    float CurrentSpeed;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float AccelerationRate = 500.0f; // Rate at which the hamster accelerates when moving
+    float MaxSpeed = 1000.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float DecelerationRate = 300.0f; // Rate at which the hamster slows down when not accelerating
+    float AccelerationRate = 500.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float MaxSpeed = 4000.0f; // Maximum speed
+    float DecelerationRate = 300.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Movement")
-    float BrakeForce = 800.0f; // Force applied when braking
+    float BrakeForce = 800.0f;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float TurnSpeed = 100.0f;
 
     UPROPERTY(VisibleAnywhere)
-    USpringArmComponent* SpringArm; // Spring arm for camera positioning
+    USpringArmComponent* SpringArm;
 
     UPROPERTY(VisibleAnywhere)
-    UCameraComponent* Camera; // Camera component for the player
+    UCameraComponent* Camera;
 
     UPROPERTY(VisibleAnywhere, Category = "Camera")
-    bool bUsePawnControlRotation = true; // Allow pawn to control rotation
+    bool bUsePawnControlRotation = true;
 
     UPROPERTY(VisibleAnywhere, Category = "Spline")
-    float MaxDistanceFromSpline = 200.f; // Maximum distance from the spline for navigation
+    float MaxDistanceFromSpline = 200.f;
 
     UPROPERTY()
-    UUserWidget* PauseMenuWidget; // Pause menu
+    UUserWidget* PauseMenuWidget;
 
     UPROPERTY()
-    UUserWidget* EndUIWidget; // End UI widget
+    UUserWidget* EndUIWidget;
 
     UPROPERTY()
-    UBeginnerRaceHUD* HUDWidget; // HUD widget
+    UBeginnerRaceHUD* HUDWidget;
 
     UPROPERTY()
     bool bUseGraphNavigation;
@@ -125,37 +134,34 @@ private:
     bool bEndUIShown;
 
     UPROPERTY()
-    class AWaypointManager* WaypointManager;
+    AWaypointManager* WaypointManager;
 
     UPROPERTY()
-    class AAdvancedRaceManager* RaceManager;
+    AAdvancedRaceManager* RaceManager;
 
     UPROPERTY()
     ABeginnerRaceGameState* GameState;
 
     UPROPERTY()
-    AActor* CurrentWaypoint; // Used for graph navigation
-
-    // New properties for waypoint choice system
-    UPROPERTY()
-    TArray<AActor*> AvailableWaypoints; // List of available waypoint choices
+    AActor* CurrentWaypoint;
 
     UPROPERTY()
-    int32 CurrentWaypointChoice; // Index of currently highlighted waypoint choice
+    TArray<AActor*> AvailableWaypoints;
 
     UPROPERTY()
-    bool bWaitingForWaypointChoice; // Whether we're waiting for the player to choose a waypoint
+    int32 CurrentWaypointChoice;
 
-    FVector MoveDirection = FVector::ZeroVector;
+    UPROPERTY()
+    bool bWaitingForWaypointChoice;
+
+    float MoveDirection = 0.0f;
 
     void RegisterWithGameState();
     void OnWaypointReached(AActor* Waypoint);
 
-    // Collision event for physics body overlap
     UFUNCTION()
     void OnPhysicsBodyOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
     UFUNCTION()
-    void OnWaypointOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+    void OnWaypointOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 };

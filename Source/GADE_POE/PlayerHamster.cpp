@@ -46,24 +46,24 @@ APlayerHamster::APlayerHamster()
 
     // Configure the character movement component for walking
     GetCharacterMovement()->MaxWalkSpeed = 600.f;
-    GetCharacterMovement()->GravityScale = 1.0f;
-    GetCharacterMovement()->bOrientRotationToMovement = false; // We'll handle rotation manually
+    GetCharacterMovement()->GravityScale = 2.0f;
+    GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
     // Set up the spring arm component for racing camera
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(GetCapsuleComponent());
-    SpringArm->TargetArmLength = 400.0f;
+    SpringArm->TargetArmLength = 300.0f;
     SpringArm->SocketOffset = FVector(0.0f, 0.0f, 100.0f);
     SpringArm->bEnableCameraLag = true;
-    SpringArm->CameraLagSpeed = 3.0f;
+    SpringArm->CameraLagSpeed = 5.0f;
     SpringArm->bEnableCameraRotationLag = true;
     SpringArm->CameraRotationLagSpeed = 10.0f;
     SpringArm->bInheritPitch = true;
     SpringArm->bInheritRoll = true;
     SpringArm->bInheritYaw = true;
-    SpringArm->SetRelativeRotation(FRotator(-15.0f, 0.0f, 0.0f)); // Remove the -90 degree yaw offset
+    SpringArm->SetRelativeRotation(FRotator(-10.f, 0.f, 0.f));
     SpringArm->bDoCollisionTest = true;
 
     // Set up the camera
@@ -74,6 +74,7 @@ APlayerHamster::APlayerHamster()
     // Set up the spline component
     CurrentLap = 0;
     CurrentWaypointIndex = 0;
+    CurrentSpeed = 0.0f;
     bIsPlayer = true;
     bUseGraphNavigation = false;
     CurrentWaypoint = nullptr;
@@ -485,17 +486,11 @@ void APlayerHamster::OnWaypointReached(AActor* Waypoint)
         return;
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: OnWaypointReached - Current State - Lap: %d, WaypointIndex: %d"), 
-        CurrentLap, CurrentWaypointIndex);
-
     ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld());
     if (SFXManager)
     {
         SFXManager->PlaySound("waypoint");
     }
-
-    // Get the current waypoint's index
-    int32 ReachedWaypointIndex = -1;
 
     if (bUseGraphNavigation && RaceManager)
     {
@@ -504,119 +499,59 @@ void APlayerHamster::OnWaypointReached(AActor* Waypoint)
         {
             if (RaceManager->GetWaypoint(i) == Waypoint)
             {
-                ReachedWaypointIndex = i;
-                CurrentWaypointIndex = i; // Update current index
-                break;
-            }
-        }
-
-        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Reached waypoint %s (Index: %d)"), 
-            *Waypoint->GetName(), ReachedWaypointIndex);
-
-        AGraph* Graph = RaceManager->GetGraph();
-        if (Graph)
-        {
-            // Get all available next waypoints
-            AvailableWaypoints = Graph->GetNeighbors(Waypoint);
-            
-            if (AvailableWaypoints.Num() > 0)
-            {
-                if (AvailableWaypoints.Num() == 1)
-                {
-                    // Single path available
-                    CurrentWaypoint = Cast<AWaypoint>(AvailableWaypoints[0]);
-                    bWaitingForWaypointChoice = false;
-                }
-                else
-                {
-                    // Multiple choices available
-                    CurrentWaypointChoice = 0;
-                    bWaitingForWaypointChoice = true;
-                    
-                    FString ChoicesStr;
-                    for (AActor* Choice : AvailableWaypoints)
-                    {
-                        ChoicesStr += FString::Printf(TEXT("%s, "), *Choice->GetName());
-                    }
-                    UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Multiple paths available: %s"), *ChoicesStr);
-                }
-            }
-            else
-            {
-                // Check if we've completed a lap by reaching waypoint 0
-                if (ReachedWaypointIndex == 0)
-                {
-                    // Only increment lap if we've passed enough waypoints
-                    if (CurrentWaypointIndex >= RaceManager->GetTotalWaypoints() - 1)
-                    {
-                        CurrentLap++;
-                        CurrentWaypointIndex = 0;
-                        CurrentWaypoint = RaceManager->GetWaypoint(0);
-                        
-                        // Update GameState with new lap count
-                        if (GameState)
-                        {
-                            GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
-                            UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Updated GameState with lap %d"), CurrentLap);
-                        }
-                        
-                        if (SFXManager)
-                        {
-                            SFXManager->PlaySound("lap");
-                        }
-                        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
-                    }
-                }
-            }
-        }
-    }
-    else if (WaypointManager)
-    {
-        // Beginner map - Sequential waypoint navigation
-        for (int32 i = 0; i < WaypointManager->Waypoints.Num(); ++i)
-        {
-            if (WaypointManager->Waypoints[i] == Waypoint)
-            {
-                ReachedWaypointIndex = i;
                 CurrentWaypointIndex = i;
                 break;
             }
         }
 
-        // Move to next waypoint
-        AActor* NextWaypoint = WaypointManager->WaypointList->GetNext(Waypoint);
-        if (NextWaypoint)
+        // Get next possible waypoints
+        AGraph* Graph = RaceManager->GetGraph();
+        if (Graph)
         {
-            CurrentWaypoint = NextWaypoint;
+            TArray<AActor*> Neighbors = Graph->GetNeighbors(Waypoint);
+            if (Neighbors.Num() > 0)
+            {
+                CurrentWaypoint = Neighbors[0];
+                UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Moving to next waypoint %s"), *CurrentWaypoint->GetName());
+            }
         }
-        else
+
+        // Check if we've completed a lap (when we reach waypoint 11, which connects back to 0)
+        if (CurrentWaypointIndex == 11)
         {
-            // No next waypoint means we've completed a lap
             CurrentLap++;
             CurrentWaypointIndex = 0;
-            CurrentWaypoint = WaypointManager->GetWaypoint(0);
-            
-            // Update GameState with new lap count
-            if (GameState)
-            {
-                GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
-                UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Updated GameState with lap %d"), CurrentLap);
-            }
-            
             if (SFXManager)
             {
                 SFXManager->PlaySound("lap");
             }
-            UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
+            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
+        }
+    }
+    else
+    {
+        // Beginner map - Sequential waypoints
+        CurrentWaypointIndex++;
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Reached waypoint index %d"), CurrentWaypointIndex);
+
+        // Check if a lap is completed
+        if (GameState && CurrentWaypointIndex >= GameState->TotalWaypoints)
+        {
+            CurrentLap++;
+            CurrentWaypointIndex = 0;
+            if (SFXManager)
+            {
+                SFXManager->PlaySound("lap");
+            }
+            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
         }
     }
 
-    // Always update the game state with our progress
+    // Update GameState with progress
     if (GameState)
     {
-        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Sending progress update - Lap: %d, WaypointIndex: %d"), 
-            CurrentLap, CurrentWaypointIndex);
         GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Updated GameState - Lap: %d, WaypointIndex: %d"), CurrentLap, CurrentWaypointIndex);
     }
 }
 
@@ -760,4 +695,9 @@ void APlayerHamster::OnWaypointOverlap(UPrimitiveComponent* OverlappedComponent,
 
     // Update current waypoint
     CurrentWaypoint = Waypoint;
+}
+
+void APlayerHamster::SetSpeed(float NewSpeed)
+{
+    CurrentSpeed = FMath::Clamp(NewSpeed, 0.0f, MaxSpeed);
 }

@@ -8,18 +8,18 @@ class TempHashMap
 private:
     struct HashNode
     {
-        K Key;
-        V Value;
+		K Key; // key of the node, should be a pointer type
+        V Value; // value of the key if found
         HashNode(const K& InKey, const V& InValue) : Key(InKey), Value(InValue) {}
         bool operator==(const HashNode& Other) const { return Key == Other.Key; }
     };
 
     static const int32 BucketCount = 64;
-    TempLinkedList<HashNode> Buckets[BucketCount];
+    TempLinkedList<HashNode> Buckets[BucketCount]; // array of linked lists
 
-    int32 GetBucketIndex(const K& Key) const
+    int32 GetBucketIndex(const K& Key) const // hash function
     {
-        if (!Key || !Key->IsValidLowLevel())
+        if (!Key || !Key->IsValidLowLevel()) // check if key is valid
         {
             UE_LOG(LogTemp, Warning, TEXT("TempHashMap::GetBucketIndex - Invalid or null key"));
             return 0;
@@ -32,7 +32,7 @@ public:
 
     void Add(const K& Key, const V& Value)
     {
-        if (!Key || !Key->IsValidLowLevel())
+        if (!Key || !Key->IsValidLowLevel()) // check if key is valid
         {
             UE_LOG(LogTemp, Warning, TEXT("TempHashMap::Add - Invalid or null key"));
             return;
@@ -56,7 +56,7 @@ public:
         }
     }
 
-    V* Get(const K& Key) const
+    V* Get(const K& Key) const // get value by key from hash table
     {
         if (!Key || !Key->IsValidLowLevel())
         {
@@ -80,7 +80,7 @@ public:
         return Node ? &Node->Data.Value : nullptr;
     }
 
-    void Remove(const K& Key)
+	void Remove(const K& Key) // remove key from hash table 
     {
         if (!Key || !Key->IsValidLowLevel())
         {
@@ -103,7 +103,7 @@ public:
         }
     }
 
-    void Clear()
+	void Clear() // clear all buckets in hash table
     {
         for (int32 i = 0; i < BucketCount; i++)
         {
@@ -111,7 +111,7 @@ public:
         }
     }
 
-    void GetAllKeys(TArray<K>& OutKeys) const
+    void GetAllKeys(TArray<K>& OutKeys) const // get all keys from hash table
     {
         OutKeys.Empty();
         for (int32 i = 0; i < BucketCount; i++)

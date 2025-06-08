@@ -4,6 +4,7 @@
 #include "Graph.h"
 #include "BiginnerRaceGameState.h"
 
+// Sets default values 
 AAdvancedRaceManager::AAdvancedRaceManager()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -19,14 +20,14 @@ void AAdvancedRaceManager::BeginPlay()
     Super::BeginPlay();
 
     GameState = Cast<ABeginnerRaceGameState>(GetWorld()->GetGameState());
-    if (!GameState)
+    if (!GameState) // Check if the game state is valid
     {
         UE_LOG(LogTemp, Error, TEXT("AdvancedRaceManager %s: Failed to find BeginnerRaceGameState."), *GetName());
     }
 
     if (!Graph)
     {
-        Graph = NewObject<AGraph>(this);
+		Graph = NewObject<AGraph>(this); // Create a new instance of AGraph if it is null
         UE_LOG(LogTemp, Warning, TEXT("AdvancedRaceManager %s: Graph was null, created new instance."), *GetName());
     }
 
@@ -58,8 +59,8 @@ void AAdvancedRaceManager::InitializeTrack(AActor* RaceTrackActor, AGraph* InGra
 
     UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager %s: Track initialized with %d waypoints."), *GetName(), Waypoints.Num());
 }
-
-void AAdvancedRaceManager::CollectWaypoints()
+ 
+void AAdvancedRaceManager::CollectWaypoints() // Collect waypoints from the world and add them to the graph 
 {
     Waypoints.Empty();
     TArray<AActor*> FoundActors;
@@ -107,7 +108,7 @@ void AAdvancedRaceManager::PopulateGraph()
         UE_LOG(LogTemp, Error, TEXT("AdvancedRaceManager: Cannot populate graph, Graph is null or no waypoints."));
         return;
     }
-
+     
     UE_LOG(LogTemp, Warning, TEXT("=== Advanced Race Track Waypoint Order ==="));
     UE_LOG(LogTemp, Warning, TEXT("Track Layout:"));
     UE_LOG(LogTemp, Warning, TEXT("Main Path: 0->1->2->3"));

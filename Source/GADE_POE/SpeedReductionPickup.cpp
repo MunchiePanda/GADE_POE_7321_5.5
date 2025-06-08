@@ -15,10 +15,10 @@ void ASpeedReductionPickup::ApplyEffect(AActor* Racer)
     if (APlayerHamster* Player = Cast<APlayerHamster>(Racer))
     {
         // Store original speed and apply reduction
-        OriginalSpeed = Player->CurrentSpeed;
-        Player->CurrentSpeed *= SpeedMultiplier;
+        OriginalSpeed = Player->GetSpeed();
+        Player->SetSpeed(OriginalSpeed * SpeedMultiplier);
         AffectedPlayer = Player;
-        UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reduced Player speed from %f to %f"), OriginalSpeed, Player->CurrentSpeed);
+        UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reduced Player speed from %f to %f"), OriginalSpeed, Player->GetSpeed());
     }
     // Handle AI character speed reduction
     else if (AAIRacer* AIRacer = Cast<AAIRacer>(Racer))
@@ -42,7 +42,7 @@ void ASpeedReductionPickup::ResetSpeed()
     // Reset player speed to original value
     if (AffectedPlayer)
     {
-        AffectedPlayer->CurrentSpeed = OriginalSpeed;
+        AffectedPlayer->SetSpeed(OriginalSpeed);
         UE_LOG(LogTemp, Log, TEXT("SpeedReductionPickup: Reset Player speed to %f"), OriginalSpeed);
         AffectedPlayer = nullptr;
     }
