@@ -77,6 +77,26 @@ void AAdvancedRaceManager::CollectWaypoints()
             UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Collected and added waypoint %s at %s to graph"), *Waypoint->GetName(), *Waypoint->GetActorLocation().ToString());
         }
     }
+
+    // Update TotalWaypoints
+    TotalWaypoints = Waypoints.Num();
+    
+    // Update GameState's TotalWaypoints
+    if (!GameState)
+    {
+        GameState = Cast<ABeginnerRaceGameState>(GetWorld()->GetGameState());
+    }
+    
+    if (GameState)
+    {
+        GameState->TotalWaypoints = TotalWaypoints;
+        UE_LOG(LogTemp, Warning, TEXT("AdvancedRaceManager: Updated GameState TotalWaypoints to %d"), TotalWaypoints);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("AdvancedRaceManager: GameState is null, cannot update TotalWaypoints"));
+    }
+
     UE_LOG(LogTemp, Log, TEXT("AdvancedRaceManager: Collected %d waypoints."), Waypoints.Num());
 }
 

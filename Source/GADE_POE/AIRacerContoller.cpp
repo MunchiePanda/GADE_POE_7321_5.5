@@ -173,27 +173,18 @@ void AAIRacerContoller::InitializeGraphNavigation()
         return;
     }
 
-    // Get the first waypoint from the graph
-    TArray<AActor*> AllWaypoints;
-    Graph->GetAllKeys(AllWaypoints);
+    // Get the first waypoint from the AdvancedRaceManager instead of the graph
+    CurrentWaypoint = Cast<AWaypoint>(AdvancedRaceManager->GetWaypoint(0));
     
-    if (AllWaypoints.Num() > 0)
+    if (CurrentWaypoint)
     {
-        CurrentWaypoint = Cast<AWaypoint>(AllWaypoints[0]);
-        if (CurrentWaypoint)
-        {
-            bUseGraphNavigation = true;
-            UE_LOG(LogTemp, Log, TEXT("AIRacerContoller: Graph navigation initialized with first waypoint: %s"), *CurrentWaypoint->GetName());
-            MoveToCurrentWaypoint();
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: Failed to cast first waypoint from graph."));
-        }
+        bUseGraphNavigation = true;
+        UE_LOG(LogTemp, Log, TEXT("AIRacerContoller: Graph navigation initialized with first waypoint: %s"), *CurrentWaypoint->GetName());
+        MoveToCurrentWaypoint();
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: No waypoints found in graph."));
+        UE_LOG(LogTemp, Error, TEXT("AIRacerContoller: Failed to get first waypoint from AdvancedRaceManager."));
     }
 }
 
@@ -282,16 +273,43 @@ void AAIRacerContoller::DelayedMoveToCurrentWaypoint()
     MoveToCurrentWaypoint();
 }
 
-void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
+void AAIRacerContoller::OnWaypointReached(AActor* WaypointActor)
 {
-    if (!ReachedWaypoint || ReachedWaypoint != CurrentWaypoint)
-        return;
+    if (!WaypointActor) return;
 
-    UE_LOG(LogTemp, Warning, TEXT("=== AI Racer Navigation Update ==="));
-    UE_LOG(LogTemp, Warning, TEXT("Racer: %s"), *GetPawn()->GetName());
-    UE_LOG(LogTemp, Warning, TEXT("Reached Waypoint: %s at %s"), 
-        *ReachedWaypoint->GetName(), 
-        *ReachedWaypoint->GetActorLocation().ToString());
+    AWaypoint* ReachedWaypoint = Cast<AWaypoint>(WaypointActor);
+    if (!ReachedWaypoint) return;
+
+    // Log waypoint progression
+    UE_LOG(LogTemp, Warning, TEXT("AI RACER %s - Reached Waypoint: %s"), *GetName(), *ReachedWaypoint->GetName());
+
+    if (bUseGraphNavigation && Graph)
+    {
+        // Get next waypoint options from graph
+        TArray<AActor*> NextWaypoints = Graph->GetNeighbors(ReachedWaypoint);
+        
+        FString NextOptionsStr;
+        for (AActor* Next : NextWaypoints)
+        {
+            NextOptionsStr += FString::Printf(TEXT("%s, "), *Next->GetName());
+        }
+        
+        UE_LOG(LogTemp, Warning, TEXT("AI RACER %s - Next Possible Waypoints: %s"), *GetName(), *NextOptionsStr);
+        
+        // Log which waypoint was chosen
+        if (CurrentWaypoint)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AI RACER %s - Selected Next Waypoint: %s"), *GetName(), *CurrentWaypoint->GetName());
+        }
+    }
+    else if (LinkedList)
+    {
+        AActor* NextWaypoint = LinkedList->GetNext(WaypointActor);
+        if (NextWaypoint)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("AI RACER %s - Next Waypoint: %s"), *GetName(), *NextWaypoint->GetName());
+        }
+    }
 
     // Update racer progress
     AAIRacer* Racer = Cast<AAIRacer>(GetPawn());
@@ -319,7 +337,7 @@ void AAIRacerContoller::OnWaypointReached(AActor* ReachedWaypoint)
     if (bUseGraphNavigation && Graph)
     {
         // Get available next waypoints from the graph
-        TArray<AActor*> Neighbors = Graph->GetNeighbors(CurrentWaypoint);
+        TArray<AActor*> Neighbors = Graph->GetNeighbors(ReachedWaypoint);
         
         UE_LOG(LogTemp, Warning, TEXT("Available paths from %s:"), *ReachedWaypoint->GetName());
         for (AActor* Neighbor : Neighbors)

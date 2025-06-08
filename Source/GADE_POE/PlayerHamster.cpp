@@ -36,44 +36,40 @@ APlayerHamster::APlayerHamster()
     PhysicsBody->SetupAttachment(GetCapsuleComponent());
     PhysicsBody->SetSimulatePhysics(true);
     PhysicsBody->SetEnableGravity(true);
-    PhysicsBody->SetConstraintMode(EDOFMode::Default);
     PhysicsBody->SetAngularDamping(0.1f);
     PhysicsBody->SetLinearDamping(0.05f);
     PhysicsBody->SetCollisionProfileName(TEXT("Pawn"));
     PhysicsBody->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
     PhysicsBody->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
     PhysicsBody->OnComponentBeginOverlap.AddDynamic(this, &APlayerHamster::OnPhysicsBodyOverlapBegin);
-    // Lock rotation to prevent physics from interfering with character rotation
-    PhysicsBody->SetConstraintMode(EDOFMode::SixDOF);
-    PhysicsBody->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-    PhysicsBody->SetConstraintMode(EDOFMode::XZPlane); // Allow movement in XZ, lock rotation
+    PhysicsBody->SetConstraintMode(EDOFMode::Default);
 
     // Configure the character movement component for walking
     GetCharacterMovement()->MaxWalkSpeed = 600.f;
     GetCharacterMovement()->GravityScale = 1.0f;
-    GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...
-    GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f); // ...at this rotation rate
+    GetCharacterMovement()->bOrientRotationToMovement = false; // We'll handle rotation manually
+    GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
     // Set up the spring arm component for racing camera
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(GetCapsuleComponent());
-    SpringArm->TargetArmLength = 400.0f; // Set camera distance
-    SpringArm->SocketOffset = FVector(0.0f, 0.0f, 100.0f); // Raise the camera
-    SpringArm->bEnableCameraLag = true; // Enable smooth camera following
-    SpringArm->CameraLagSpeed = 3.0f; // Adjust how quickly camera catches up
-    SpringArm->bEnableCameraRotationLag = true; // Enable smooth rotation
-    SpringArm->CameraRotationLagSpeed = 10.0f; // Adjust rotation smoothing
+    SpringArm->TargetArmLength = 400.0f;
+    SpringArm->SocketOffset = FVector(0.0f, 0.0f, 100.0f);
+    SpringArm->bEnableCameraLag = true;
+    SpringArm->CameraLagSpeed = 3.0f;
+    SpringArm->bEnableCameraRotationLag = true;
+    SpringArm->CameraRotationLagSpeed = 10.0f;
     SpringArm->bInheritPitch = true;
     SpringArm->bInheritRoll = true;
     SpringArm->bInheritYaw = true;
-    SpringArm->SetRelativeRotation(FRotator(-15.0f, -90.0f, 0.0f)); // -90 degrees yaw to align with model's right side
-    SpringArm->bDoCollisionTest = true; // Enable collision testing
+    SpringArm->SetRelativeRotation(FRotator(-15.0f, 0.0f, 0.0f)); // Remove the -90 degree yaw offset
+    SpringArm->bDoCollisionTest = true;
 
     // Set up the camera
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
-    Camera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+    Camera->bUsePawnControlRotation = false;
 
     // Set up the spline component
     CurrentLap = 0;
@@ -84,6 +80,10 @@ APlayerHamster::APlayerHamster()
 
     // Ensure TurnSpeed is set to a reasonable value
     TurnSpeed = 100.0f;
+
+    bIsPaused = false;
+    WaypointManager = nullptr;
+    RaceManager = nullptr;
 }
 
 void APlayerHamster::BeginPlay()
@@ -157,24 +157,23 @@ void APlayerHamster::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: HUDClass is not set!"));
     }
 
-    // Check for AdvancedRaceManager first (for advanced map)
+    // Set up overlap events for waypoints
+    GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &APlayerHamster::OnWaypointOverlap);
+
+    // Find the race manager
     RaceManager = Cast<AAdvancedRaceManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AAdvancedRaceManager::StaticClass()));
     if (RaceManager)
     {
         bUseGraphNavigation = true;
-        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Using graph-based navigation (AdvancedRaceManager found)"));
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Using graph navigation with AdvancedRaceManager"));
     }
     else
     {
-        // Fall back to WaypointManager for other levels
+        // Find waypoint manager as fallback
         WaypointManager = Cast<AWaypointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), AWaypointManager::StaticClass()));
-        if (!WaypointManager)
+        if (WaypointManager)
         {
-            UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Neither AdvancedRaceManager nor WaypointManager found!"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Using linear navigation (WaypointManager found)"));
+            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Using waypoint manager navigation"));
         }
     }
 
@@ -183,8 +182,14 @@ void APlayerHamster::BeginPlay()
     {
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: GameState not found!"));
     }
+    else
+    {
+        // Register the player with the GameState
+        GameState->RegisterRacer(this);
+        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Registered with GameState"));
+    }
 
-    // Teleport to first waypoint to ensure proximity
+    // Initialize the first waypoint for tracking (but don't teleport to it)
     AActor* FirstWaypoint = nullptr;
     if (bUseGraphNavigation && RaceManager)
     {
@@ -195,21 +200,10 @@ void APlayerHamster::BeginPlay()
         FirstWaypoint = WaypointManager->GetWaypoint(0);
     }
 
-    if (FirstWaypoint) // Check if the first waypoint is valid
+    if (FirstWaypoint)
     {
-        // Teleport to the first waypoint with a small offset 
-        FVector StartLocation = FirstWaypoint->GetActorLocation() + FVector(0.f, 0.f, 100.f);
-        bool bTeleportSuccess = SetActorLocation(StartLocation, false, nullptr, ETeleportType::TeleportPhysics);
-        if (bTeleportSuccess)
-        {
-            UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Teleported to first waypoint at %s"), *StartLocation.ToString());
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Failed to teleport to first waypoint at %s"), *StartLocation.ToString());
-        }
         CurrentWaypoint = FirstWaypoint;
-        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Current location after teleport attempt: %s"), *GetActorLocation().ToString());
+        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: First waypoint set to %s"), *FirstWaypoint->GetName());
     }
     else
     {
@@ -272,7 +266,41 @@ void APlayerHamster::Tick(float DeltaTime)
         UE_LOG(LogTemp, Log, TEXT("PlayerHamster: End UI shown"));
     }
 
+    // Visualize waypoint choices if waiting for player input
+    if (bWaitingForWaypointChoice && AvailableWaypoints.Num() > 0)
+    {
+        for (int32 i = 0; i < AvailableWaypoints.Num(); i++)
+        {
+            if (AvailableWaypoints[i])
+            {
+                FColor Color = (i == CurrentWaypointChoice) ? FColor::Green : FColor::Red;
+                DrawDebugSphere(
+                    GetWorld(),
+                    AvailableWaypoints[i]->GetActorLocation(),
+                    200.0f,  // Radius
+                    12,      // Segments
+                    Color,
+                    false,   // Persistent
+                    0.0f    // Duration (0 for single frame)
+                );
+
+                // Draw line from current position to each waypoint
+                DrawDebugLine(
+                    GetWorld(),
+                    GetActorLocation(),
+                    AvailableWaypoints[i]->GetActorLocation(),
+                    Color,
+                    false,
+                    0.0f,
+                    0,
+                    5.0f  // Line thickness
+                );
+            }
+        }
+    }
     // Check distance to current waypoint and trigger OnWaypointReached if close enough
+    else if (!bWaitingForWaypointChoice)  // Only check distance if not waiting for choice
+    {
     AActor* TargetWaypoint = nullptr;
     if (bUseGraphNavigation && RaceManager && CurrentWaypoint)
     {
@@ -309,6 +337,7 @@ void APlayerHamster::Tick(float DeltaTime)
             }
         }
 
+            // Only draw current waypoint debug sphere if not choosing
         if (WaypointCollision)
         {
             float SphereRadius = WaypointCollision->GetScaledSphereRadius();
@@ -322,6 +351,7 @@ void APlayerHamster::Tick(float DeltaTime)
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: TargetWaypoint is null (Index: %d)"), CurrentWaypointIndex);
+        }
     }
 
     if (CurrentSpeed > 0.0f && SFXManager)
@@ -340,110 +370,97 @@ void APlayerHamster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     PlayerInputComponent->BindAxis("Turn", this, &APlayerHamster::Turn);
     PlayerInputComponent->BindAxis("LookUp", this, &APlayerHamster::LookUp);
     PlayerInputComponent->BindAction("Pause", IE_Pressed, this, &APlayerHamster::TogglePauseMenu);
+    
+    // Add new input bindings for waypoint selection
+    PlayerInputComponent->BindAction("SelectNextWaypoint", IE_Pressed, this, &APlayerHamster::SelectNextWaypoint);
+    PlayerInputComponent->BindAction("ConfirmWaypoint", IE_Pressed, this, &APlayerHamster::ConfirmWaypoint);
 }
 
 void APlayerHamster::MoveForward(float Value)
 {
-    if (Value != 0.0f)
+    if (bIsPaused) return;
+
+    if (Value > 0.0f)
     {
-        // Use the adjusted forward vector for movement
-        AddMovementInput(GetActorForwardVector(), Value);
-        CurrentSpeed = FMath::Clamp(GetCharacterMovement()->Velocity.Size(), 0.0f, MaxSpeed);
+        CurrentSpeed = FMath::Clamp(CurrentSpeed + (AccelerationRate * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
+        AddMovementInput(GetActorForwardVector(), CurrentSpeed * GetWorld()->GetDeltaSeconds());
     }
     else
     {
         CurrentSpeed = FMath::Clamp(CurrentSpeed - (DecelerationRate * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
-        if (CurrentSpeed <= 0.01f)
+        if (CurrentSpeed > 0.0f)
         {
-            CurrentSpeed = 0.0f;
+            AddMovementInput(GetActorForwardVector(), CurrentSpeed * GetWorld()->GetDeltaSeconds());
         }
     }
 }
 
 void APlayerHamster::MoveRight(float Value)
 {
+    // Rotate the player
     if (Value != 0.0f)
     {
-        // Calculate the rotation based on input, accounting for the model's orientation
-        FRotator NewRotation = GetActorRotation();
-        NewRotation.Yaw += Value * TurnSpeed * GetWorld()->GetDeltaSeconds();
-        
-        // Set the new rotation
-        SetActorRotation(NewRotation);
-        
-        // The camera will automatically follow due to spring arm inheritance settings
-        CurrentSpeed = FMath::Clamp(GetCharacterMovement()->Velocity.Size(), 0.0f, MaxSpeed);
+        AddControllerYawInput(Value * TurnSpeed * GetWorld()->GetDeltaSeconds());
     }
 }
 
 void APlayerHamster::Brake(float Value)
 {
-    if (Value > 0.0f)
+    // Rotate the camera
+    if (SpringArm)
     {
-        CurrentSpeed = FMath::Clamp(CurrentSpeed - (BrakeForce * GetWorld()->GetDeltaSeconds()), 0.0f, MaxSpeed);
-        if (CurrentSpeed <= 0.01f)
-        {
-            CurrentSpeed = 0.0f;
-            FVector CurrentVelocity = GetCharacterMovement()->Velocity;
-            if (CurrentVelocity.SizeSquared() > 0.0f)
-            {
-                AddMovementInput(CurrentVelocity.GetSafeNormal(), -Value);
-            }
-        }
+        FRotator NewRotation = SpringArm->GetRelativeRotation();
+        NewRotation.Yaw += Value;
+        SpringArm->SetRelativeRotation(NewRotation);
     }
 }
 
 void APlayerHamster::Turn(float Value)
 {
-    // We don't need this anymore as the camera follows the character's rotation
+    if (Value != 0.0f && !bIsPaused)
+    {
+        // Rotate both the camera and character
+        AddControllerYawInput(Value);
+        
+        // Update character rotation to match controller rotation
+        FRotator NewRotation = FRotator(0, Controller->GetControlRotation().Yaw, 0);
+        SetActorRotation(NewRotation);
+    }
 }
 
 void APlayerHamster::LookUp(float Value)
 {
-    if (SpringArm && Value != 0.0f)
+    if (SpringArm)
     {
-        // Allow limited vertical camera adjustment
         FRotator NewRotation = SpringArm->GetRelativeRotation();
-        NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + Value, -30.0f, 0.0f);
+        NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + Value, -80.0f, 10.0f);
         SpringArm->SetRelativeRotation(NewRotation);
     }
 }
 
 void APlayerHamster::TogglePauseMenu()
 {
+    // Check if the PauseMenuWidget is valid before proceeding with the toggle
     if (!PauseMenuWidget) return;
     APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
     if (!PlayerController) return;
-
-    ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld());
-
     if (bIsPaused)
     {
-        PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden);
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Hidden); // Hide the widget when unpausing 
         PauseMenuWidget->RemoveFromParent();
-        UGameplayStatics::SetGamePaused(GetWorld(), false);
+        UGameplayStatics::SetGamePaused(GetWorld(), false); // Unpause the game 
         PlayerController->SetInputMode(FInputModeGameOnly());
-        PlayerController->bShowMouseCursor = false;
+        PlayerController->bShowMouseCursor = false; // Hide the mouse cursor
         bIsPaused = false;
-        if (SFXManager)
-        {
-            SFXManager->PlaySound("unpause");
-            SFXManager->PlayBackgroundMusic("bgm");
-        }
     }
     else
     {
-        PauseMenuWidget->AddToViewport();
-        PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
-        UGameplayStatics::SetGamePaused(GetWorld(), true);
-        PlayerController->SetInputMode(FInputModeUIOnly());
-        PlayerController->bShowMouseCursor = true;
+        PauseMenuWidget->AddToViewport(); // Add the widget to the viewport
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Visible); // Show the widget
+        UGameplayStatics::SetGamePaused(GetWorld(), true); // Pause the game
+        PlayerController->SetInputMode(FInputModeUIOnly()); // Set the input mode
+        PlayerController->bShowMouseCursor = true; // Show the mouse cursor
         bIsPaused = true;
-        if (SFXManager)
-        {
-            SFXManager->PlaySound("pause");
-            SFXManager->StopBackgroundMusic();
-        }
     }
 }
 
@@ -462,54 +479,200 @@ void APlayerHamster::RegisterWithGameState()
 
 void APlayerHamster::OnWaypointReached(AActor* Waypoint)
 {
+    if (!Waypoint)
+    {
+        UE_LOG(LogTemp, Error, TEXT("PlayerHamster: OnWaypointReached called with null waypoint"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: OnWaypointReached - Current State - Lap: %d, WaypointIndex: %d"), 
+        CurrentLap, CurrentWaypointIndex);
+
     ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld());
     if (SFXManager)
     {
         SFXManager->PlaySound("waypoint");
     }
 
+    // Get the current waypoint's index
+    int32 ReachedWaypointIndex = -1;
+
     if (bUseGraphNavigation && RaceManager)
     {
+        // Advanced map - Graph-based navigation
+        for (int32 i = 0; i < RaceManager->GetTotalWaypoints(); ++i)
+        {
+            if (RaceManager->GetWaypoint(i) == Waypoint)
+            {
+                ReachedWaypointIndex = i;
+                CurrentWaypointIndex = i; // Update current index
+                break;
+            }
+        }
+
+        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Reached waypoint %s (Index: %d)"), 
+            *Waypoint->GetName(), ReachedWaypointIndex);
+
         AGraph* Graph = RaceManager->GetGraph();
         if (Graph)
         {
-            TArray<AActor*> Neighbors = Graph->GetNeighbors(Waypoint);
-            if (Neighbors.Num() > 0)
+            // Get all available next waypoints
+            AvailableWaypoints = Graph->GetNeighbors(Waypoint);
+            
+            if (AvailableWaypoints.Num() > 0)
             {
-                CurrentWaypoint = Neighbors[0];
-                CurrentWaypointIndex++;
-                UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Reached waypoint %s, moving to %s (index %d)"),
-                    *Waypoint->GetName(), *CurrentWaypoint->GetName(), CurrentWaypointIndex);
+                if (AvailableWaypoints.Num() == 1)
+                {
+                    // Single path available
+                    CurrentWaypoint = Cast<AWaypoint>(AvailableWaypoints[0]);
+                    bWaitingForWaypointChoice = false;
+                }
+                else
+                {
+                    // Multiple choices available
+                    CurrentWaypointChoice = 0;
+                    bWaitingForWaypointChoice = true;
+                    
+                    FString ChoicesStr;
+                    for (AActor* Choice : AvailableWaypoints)
+                    {
+                        ChoicesStr += FString::Printf(TEXT("%s, "), *Choice->GetName());
+                    }
+                    UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Multiple paths available: %s"), *ChoicesStr);
+                }
             }
             else
             {
-                UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Waypoint %s has no neighbors"), *Waypoint->GetName());
-                CurrentWaypoint = RaceManager->GetWaypoint(0);
-                CurrentWaypointIndex = 0;
+                // Check if we've completed a lap by reaching waypoint 0
+                if (ReachedWaypointIndex == 0)
+                {
+                    // Only increment lap if we've passed enough waypoints
+                    if (CurrentWaypointIndex >= RaceManager->GetTotalWaypoints() - 1)
+                    {
+                        CurrentLap++;
+                        CurrentWaypointIndex = 0;
+                        CurrentWaypoint = RaceManager->GetWaypoint(0);
+                        
+                        // Update GameState with new lap count
+                        if (GameState)
+                        {
+                            GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
+                            UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Updated GameState with lap %d"), CurrentLap);
+                        }
+                        
+                        if (SFXManager)
+                        {
+                            SFXManager->PlaySound("lap");
+                        }
+                        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
+                    }
+                }
             }
+        }
+    }
+    else if (WaypointManager)
+    {
+        // Beginner map - Sequential waypoint navigation
+        for (int32 i = 0; i < WaypointManager->Waypoints.Num(); ++i)
+        {
+            if (WaypointManager->Waypoints[i] == Waypoint)
+            {
+                ReachedWaypointIndex = i;
+                CurrentWaypointIndex = i;
+                break;
+            }
+        }
+
+        // Move to next waypoint
+        AActor* NextWaypoint = WaypointManager->WaypointList->GetNext(Waypoint);
+        if (NextWaypoint)
+        {
+            CurrentWaypoint = NextWaypoint;
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("PlayerHamster: Graph is null in RaceManager"));
+            // No next waypoint means we've completed a lap
+            CurrentLap++;
+            CurrentWaypointIndex = 0;
+            CurrentWaypoint = WaypointManager->GetWaypoint(0);
+            
+            // Update GameState with new lap count
+            if (GameState)
+            {
+                GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
+                UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Updated GameState with lap %d"), CurrentLap);
+            }
+            
+            if (SFXManager)
+            {
+                SFXManager->PlaySound("lap");
+            }
+            UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
         }
     }
-    else
-    {
-        CurrentWaypointIndex++;
-        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Reached waypoint index %d"), CurrentWaypointIndex);
-    }
 
-    if (GameState && CurrentWaypointIndex >= GameState->TotalWaypoints)
+    // Always update the game state with our progress
+    if (GameState)
     {
-        CurrentLap++;
-        CurrentWaypointIndex = 0;
-        if (SFXManager)
+        UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Sending progress update - Lap: %d, WaypointIndex: %d"), 
+            CurrentLap, CurrentWaypointIndex);
+        GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
+    }
+}
+
+void APlayerHamster::SelectNextWaypoint()
+{
+    if (!bWaitingForWaypointChoice || AvailableWaypoints.Num() == 0)
+        return;
+
+    // Cycle to the next waypoint choice
+    CurrentWaypointChoice = (CurrentWaypointChoice + 1) % AvailableWaypoints.Num();
+    
+    // Update debug visualization
+    for (int32 i = 0; i < AvailableWaypoints.Num(); i++)
+    {
+        if (AvailableWaypoints[i])
         {
-            SFXManager->PlaySound("lap");
+            FColor Color = (i == CurrentWaypointChoice) ? FColor::Green : FColor::Red;
+            DrawDebugSphere(
+                GetWorld(),
+                AvailableWaypoints[i]->GetActorLocation(),
+                200.0f,  // Radius
+                12,      // Segments
+                Color,
+                false,   // Persistent
+                0.1f    // Duration
+            );
         }
-        UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Completed lap %d"), CurrentLap);
     }
+}
 
+void APlayerHamster::ConfirmWaypoint()
+{
+    if (!bWaitingForWaypointChoice || AvailableWaypoints.Num() == 0)
+        return;
+
+    // Set the chosen waypoint as the current target
+    CurrentWaypoint = AvailableWaypoints[CurrentWaypointChoice];
+    bWaitingForWaypointChoice = false;
+    
+    // Find the index of the chosen waypoint in the RaceManager's waypoint list
+    if (RaceManager)
+    {
+        for (int32 i = 0; i < RaceManager->GetTotalWaypoints(); ++i)
+        {
+            if (RaceManager->GetWaypoint(i) == CurrentWaypoint)
+            {
+                CurrentWaypointIndex = i;
+                break;
+            }
+        }
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("PlayerHamster: Confirmed waypoint choice: %s (index: %d)"), 
+        *CurrentWaypoint->GetName(), CurrentWaypointIndex);
+
+    // Update game state with new progress
     if (GameState)
     {
         GameState->UpdateRacerProgress(this, CurrentLap, CurrentWaypointIndex);
@@ -524,4 +687,77 @@ void APlayerHamster::OnPhysicsBodyOverlapBegin(UPrimitiveComponent* OverlappedCo
         SFXManager->PlaySound("crash");
         UE_LOG(LogTemp, Warning, TEXT("PlayerHamster: Collided with AI racer: %s"), *OtherActor->GetName());
     }
+}
+
+void APlayerHamster::OnWaypointOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    if (bIsPaused) return;
+
+    AWaypoint* Waypoint = Cast<AWaypoint>(OtherActor);
+    if (!Waypoint) return;
+
+    // Log waypoint progression
+    UE_LOG(LogTemp, Warning, TEXT("PLAYER - Current Waypoint: %s"), *Waypoint->GetName());
+    
+    // Call OnWaypointReached to handle waypoint progression and choices
+    OnWaypointReached(Waypoint);
+
+    // Debug visualization for the current waypoint
+    DrawDebugSphere(
+        GetWorld(),
+        Waypoint->GetActorLocation(),
+        200.0f,  // Radius
+        12,      // Segments
+        FColor::Yellow,
+        false,   // Persistent
+        2.0f    // Duration - longer duration to make it more visible
+    );
+    
+    if (bUseGraphNavigation && RaceManager)
+    {
+        // Get next waypoint options from graph and visualize them
+        TArray<AActor*> NextWaypoints = RaceManager->GetGraph()->GetNeighbors(Waypoint);
+        
+        FString NextOptionsStr;
+        for (AActor* Next : NextWaypoints)
+        {
+            NextOptionsStr += FString::Printf(TEXT("%s, "), *Next->GetName());
+            
+            // Visualize available next waypoints
+            DrawDebugSphere(
+                GetWorld(),
+                Next->GetActorLocation(),
+                150.0f,  // Slightly smaller radius for next waypoints
+                12,      // Segments
+                FColor::Blue,
+                false,   // Persistent
+                2.0f    // Duration
+            );
+
+            // Draw lines to show connections
+            DrawDebugLine(
+                GetWorld(),
+                Waypoint->GetActorLocation(),
+                Next->GetActorLocation(),
+                FColor::Green,
+                false,
+                2.0f,
+                0,
+                5.0f  // Line thickness
+            );
+        }
+        
+        UE_LOG(LogTemp, Warning, TEXT("PLAYER - Next Possible Waypoints: %s"), *NextOptionsStr);
+    }
+    else if (WaypointManager && WaypointManager->WaypointList)
+    {
+        AActor* NextWaypoint = WaypointManager->WaypointList->GetNext(Waypoint);
+        if (NextWaypoint)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PLAYER - Next Waypoint: %s"), *NextWaypoint->GetName());
+        }
+    }
+
+    // Update current waypoint
+    CurrentWaypoint = Waypoint;
 }

@@ -80,16 +80,60 @@ void ABeginnerRaceGameState::RegisterRacer(AActor* Racer)
 
 void ABeginnerRaceGameState::UpdateRacerProgress(AActor* Racer, int32 Lap, int32 WaypointIndex)
 {
+    if (!Racer)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BeginnerRaceGameState: Tried to update progress for null racer"));
+        return;
+    }
+
+    // Validate the waypoint index
+    if (WaypointIndex < 0)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BeginnerRaceGameState: Invalid waypoint index %d for racer %s"), 
+            WaypointIndex, *Racer->GetName());
+        return;
+    }
+
+    // Find and update the racer's entry
+    bool bFound = false;
     for (FRacerLeaderboardEntry& Entry : Leaderboard)
     {
         if (Entry.Racer == Racer)
         {
-            Entry.Lap = Lap;
-            Entry.WaypointIndex = WaypointIndex;
-            UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Updated progress for %s: Lap %d, WaypointIndex %d"), *Racer->GetName(), Lap, WaypointIndex);
+            // Always update if the lap count has increased
+            if (Lap > Entry.Lap)
+            {
+                Entry.Lap = Lap;
+                Entry.WaypointIndex = WaypointIndex;
+                bFound = true;
+                UE_LOG(LogTemp, Warning, TEXT("BeginnerRaceGameState: Updated lap progress for %s: Lap %d, WaypointIndex %d"), 
+                    *Racer->GetName(), Lap, WaypointIndex);
+            }
+            // If on the same lap, only update if waypoint index has increased
+            else if (Lap == Entry.Lap && WaypointIndex > Entry.WaypointIndex)
+            {
+                Entry.WaypointIndex = WaypointIndex;
+                bFound = true;
+                UE_LOG(LogTemp, Warning, TEXT("BeginnerRaceGameState: Updated waypoint progress for %s: Lap %d, WaypointIndex %d"), 
+                    *Racer->GetName(), Lap, WaypointIndex);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("BeginnerRaceGameState: Ignored invalid progress update for %s: Current(Lap:%d, WP:%d) New(Lap:%d, WP:%d)"), 
+                    *Racer->GetName(), Entry.Lap, Entry.WaypointIndex, Lap, WaypointIndex);
+            }
             break;
         }
     }
+
+    if (!bFound)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BeginnerRaceGameState: Could not find leaderboard entry for racer %s"), 
+            *Racer->GetName());
+        return;
+    }
+
+    // Update the leaderboard positions
     UpdateLeaderboard();
 }
 
@@ -100,17 +144,25 @@ TArray<FRacerLeaderboardEntry> ABeginnerRaceGameState::GetLeaderboard() const
 
 void ABeginnerRaceGameState::UpdateLeaderboard()
 {
+    // Sort based on lap count first, then waypoint index
     Leaderboard.Sort([](const FRacerLeaderboardEntry& A, const FRacerLeaderboardEntry& B) {
+        // First compare laps
         if (A.Lap != B.Lap)
         {
             return A.Lap > B.Lap;
         }
+        // If same lap, compare waypoint index
         return A.WaypointIndex > B.WaypointIndex;
-        });
+    });
 
+    // Update placements and log detailed progress
     for (int32 i = 0; i < Leaderboard.Num(); i++)
     {
         Leaderboard[i].Placement = i + 1;
-        UE_LOG(LogTemp, Log, TEXT("BeginnerRaceGameState: Updated placement for %s to %d"), *Leaderboard[i].RacerName, Leaderboard[i].Placement);
+        UE_LOG(LogTemp, Warning, TEXT("BeginnerRaceGameState: Racer %s - Lap: %d, Waypoint: %d, Position: %d"), 
+            *Leaderboard[i].RacerName, 
+            Leaderboard[i].Lap,
+            Leaderboard[i].WaypointIndex,
+            Leaderboard[i].Placement);
     }
 }

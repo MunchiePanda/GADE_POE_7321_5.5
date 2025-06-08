@@ -31,12 +31,24 @@ void UBeginnerRaceHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	UpdatePositionDisplay();
 }
 
-void UBeginnerRaceHUD::UpdateLapCounter() // Update the lap counter display
+void UBeginnerRaceHUD::UpdateLapCounter()
 {
     if (PlayerHamster && GameState && LapCounter)
     {
-        LapCounter->SetText(FText::FromString(FString::Printf(TEXT("Lap %d/%d"), PlayerHamster->CurrentLap, GameState->TotalLaps)));
-        UE_LOG(LogTemp, Warning, TEXT("Lap %d/%d"), PlayerHamster->CurrentLap, GameState->TotalLaps);
+        // Get the player's lap count from the GameState's leaderboard
+        int32 CurrentLap = 0;
+        TArray<FRacerLeaderboardEntry> Leaderboard = GameState->GetLeaderboard();
+        for (const FRacerLeaderboardEntry& Entry : Leaderboard)
+        {
+            if (Entry.Racer == PlayerHamster)
+            {
+                CurrentLap = Entry.Lap;
+                break;
+            }
+        }
+
+        LapCounter->SetText(FText::FromString(FString::Printf(TEXT("Lap %d/%d"), CurrentLap, GameState->TotalLaps)));
+        UE_LOG(LogTemp, Warning, TEXT("HUD: Lap %d/%d (from GameState)"), CurrentLap, GameState->TotalLaps);
     }
 }
 

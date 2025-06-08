@@ -41,6 +41,8 @@ public:
 
     void Turn(float Value);
     void LookUp(float Value);
+    void SelectNextWaypoint(); // New function to cycle through waypoint choices
+    void ConfirmWaypoint(); // New function to confirm waypoint selection
 
     void TogglePauseMenu();
 
@@ -98,6 +100,9 @@ private:
     UPROPERTY(VisibleAnywhere)
     UCameraComponent* Camera; // Camera component for the player
 
+    UPROPERTY(VisibleAnywhere, Category = "Camera")
+    bool bUsePawnControlRotation = true; // Allow pawn to control rotation
+
     UPROPERTY(VisibleAnywhere, Category = "Spline")
     float MaxDistanceFromSpline = 200.f; // Maximum distance from the spline for navigation
 
@@ -110,22 +115,36 @@ private:
     UPROPERTY()
     UBeginnerRaceHUD* HUDWidget; // HUD widget
 
-    bool bIsPaused = false;
-    bool bEndUIShown = false;
+    UPROPERTY()
+    bool bUseGraphNavigation;
 
     UPROPERTY()
-    AWaypointManager* WaypointManager; // Keep for compatibility with other levels
+    bool bIsPaused;
 
     UPROPERTY()
-    AAdvancedRaceManager* RaceManager; // Add for advanced map
+    bool bEndUIShown;
+
+    UPROPERTY()
+    class AWaypointManager* WaypointManager;
+
+    UPROPERTY()
+    class AAdvancedRaceManager* RaceManager;
 
     UPROPERTY()
     ABeginnerRaceGameState* GameState;
 
-    bool bUseGraphNavigation = false; // Flag to determine navigation mode
-
     UPROPERTY()
     AActor* CurrentWaypoint; // Used for graph navigation
+
+    // New properties for waypoint choice system
+    UPROPERTY()
+    TArray<AActor*> AvailableWaypoints; // List of available waypoint choices
+
+    UPROPERTY()
+    int32 CurrentWaypointChoice; // Index of currently highlighted waypoint choice
+
+    UPROPERTY()
+    bool bWaitingForWaypointChoice; // Whether we're waiting for the player to choose a waypoint
 
     FVector MoveDirection = FVector::ZeroVector;
 
@@ -135,4 +154,8 @@ private:
     // Collision event for physics body overlap
     UFUNCTION()
     void OnPhysicsBodyOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+    UFUNCTION()
+    void OnWaypointOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
+        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 };
