@@ -51,22 +51,29 @@ APlayerHamster::APlayerHamster()
     // Configure the character movement component for walking
     GetCharacterMovement()->MaxWalkSpeed = 600.f;
     GetCharacterMovement()->GravityScale = 1.0f;
-    GetCharacterMovement()->bOrientRotationToMovement = false;
-    GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
+    GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...
+    GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f); // ...at this rotation rate
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
-    // Set up the spring arm component
+    // Set up the spring arm component for racing camera
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(GetCapsuleComponent());
-    SpringArm->TargetArmLength = 300.0f;
-    SpringArm->bEnableCameraLag = true;
-    SpringArm->CameraLagSpeed = 5.0f;
-    SpringArm->SetRelativeRotation(FRotator(-10.f, 0.f, 0.f));
-    SpringArm->bInheritYaw = false;
+    SpringArm->TargetArmLength = 400.0f; // Set camera distance
+    SpringArm->SocketOffset = FVector(0.0f, 0.0f, 100.0f); // Raise the camera
+    SpringArm->bEnableCameraLag = true; // Enable smooth camera following
+    SpringArm->CameraLagSpeed = 3.0f; // Adjust how quickly camera catches up
+    SpringArm->bEnableCameraRotationLag = true; // Enable smooth rotation
+    SpringArm->CameraRotationLagSpeed = 10.0f; // Adjust rotation smoothing
+    SpringArm->bInheritPitch = true;
+    SpringArm->bInheritRoll = true;
+    SpringArm->bInheritYaw = true;
+    SpringArm->SetRelativeRotation(FRotator(-15.0f, -90.0f, 0.0f)); // -90 degrees yaw to align with model's right side
+    SpringArm->bDoCollisionTest = true; // Enable collision testing
 
     // Set up the camera
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-    Camera->SetupAttachment(SpringArm);
+    Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
+    Camera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
     // Set up the spline component
     CurrentLap = 0;
@@ -228,6 +235,9 @@ void APlayerHamster::BeginPlay()
     {
         UE_LOG(LogTemp, Error, TEXT("PlayerHamster: SFXManager is null!"));
     }
+
+    // Set initial rotation to match the model's forward direction
+    SetActorRotation(FRotator(0.0f, 90.0f, 0.0f));
 }
 
 void APlayerHamster::Tick(float DeltaTime)
@@ -336,6 +346,7 @@ void APlayerHamster::MoveForward(float Value)
 {
     if (Value != 0.0f)
     {
+        // Use the adjusted forward vector for movement
         AddMovementInput(GetActorForwardVector(), Value);
         CurrentSpeed = FMath::Clamp(GetCharacterMovement()->Velocity.Size(), 0.0f, MaxSpeed);
     }
@@ -353,17 +364,14 @@ void APlayerHamster::MoveRight(float Value)
 {
     if (Value != 0.0f)
     {
-        // Log to confirm input is received
-        UE_LOG(LogTemp, Log, TEXT("MoveRight Input Value: %f"), Value);
-
-        // Rotate the character using the controller's yaw input
-        APlayerController* PlayerController = Cast<APlayerController>(GetController());
-        if (PlayerController)
-        {
-            float DeltaYaw = Value * TurnSpeed * GetWorld()->GetDeltaSeconds();
-            PlayerController->AddYawInput(DeltaYaw);
-            UE_LOG(LogTemp, Log, TEXT("Applying DeltaYaw: %f, TurnSpeed: %f"), DeltaYaw, TurnSpeed);
-        }
+        // Calculate the rotation based on input, accounting for the model's orientation
+        FRotator NewRotation = GetActorRotation();
+        NewRotation.Yaw += Value * TurnSpeed * GetWorld()->GetDeltaSeconds();
+        
+        // Set the new rotation
+        SetActorRotation(NewRotation);
+        
+        // The camera will automatically follow due to spring arm inheritance settings
         CurrentSpeed = FMath::Clamp(GetCharacterMovement()->Velocity.Size(), 0.0f, MaxSpeed);
     }
 }
@@ -387,20 +395,16 @@ void APlayerHamster::Brake(float Value)
 
 void APlayerHamster::Turn(float Value)
 {
-    if (SpringArm)
-    {
-        FRotator NewRotation = SpringArm->GetRelativeRotation();
-        NewRotation.Yaw += Value;
-        SpringArm->SetRelativeRotation(NewRotation);
-    }
+    // We don't need this anymore as the camera follows the character's rotation
 }
 
 void APlayerHamster::LookUp(float Value)
 {
-    if (SpringArm)
+    if (SpringArm && Value != 0.0f)
     {
+        // Allow limited vertical camera adjustment
         FRotator NewRotation = SpringArm->GetRelativeRotation();
-        NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + Value, -80.0f, 10.0f);
+        NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + Value, -30.0f, 0.0f);
         SpringArm->SetRelativeRotation(NewRotation);
     }
 }

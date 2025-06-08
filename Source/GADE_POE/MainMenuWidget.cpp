@@ -5,20 +5,50 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "TimerManager.h"
+#include "SFXManager.h"
+
+void UMainMenuWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // Play menu open sound when constructed
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayMenuOpenSound();
+    }
+}
 
 void UMainMenuWidget::OnMapOneClicked()
 {
+    // Play button click sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonClickSound();
+    }
+
     LoadLevelAsync(FName("CheckpointDialogueLVL")); // Open the dialogue level and then load the race level
 }
 
 void UMainMenuWidget::OnMapTwoClicked()
 {
-	LoadLevelAsync(FName("BeginnerDialogueLVL")); // Open the dialogue level for the beginner race and then load the race level
+    // Play button click sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonClickSound();
+    }
+
+    LoadLevelAsync(FName("BeginnerDialogueLVL")); // Open the dialogue level for the beginner race and then load the race level
 }
 
 void UMainMenuWidget::OnMapThreeClicked()
 {
-	LoadLevelAsync(FName("AdvancedDialogueLVL")); // Load the advanced map
+    // Play button click sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonClickSound();
+    }
+
+    LoadLevelAsync(FName("AdvancedDialogueLVL")); // Load the advanced map
 }
 
 void UMainMenuWidget::ShowLoadingScreen()
@@ -46,7 +76,7 @@ void UMainMenuWidget::HideLoadingScreen() // Hide the loading screen
 
 void UMainMenuWidget::LoadLevelAsync(const FName& LevelName) // Load the level
 {
-	if (LevelName.IsNone()) // Check if the level name is empty
+    if (LevelName.IsNone()) // Check if the level name is empty
     {
         UE_LOG(LogTemp, Error, TEXT("LoadLevelAsync called with an EMPTY level name!"));
         return; // Exit if the level name is empty
@@ -70,5 +100,25 @@ void UMainMenuWidget::UpdateLoadingProgress(float Progress) // Update the loadin
     if (LoadingProgressSlider) // Check if the slider exists
     {
         LoadingProgressSlider->SetValue(Progress);
+    }
+}
+
+void UMainMenuWidget::NativeDestruct()
+{
+    Super::NativeDestruct();
+
+    // Play menu close sound when destroyed
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayMenuCloseSound();
+    }
+}
+
+// Add button hover sound function
+void UMainMenuWidget::OnButtonHovered()
+{
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonHoverSound();
     }
 }

@@ -5,65 +5,98 @@
 #include "Components/Button.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
+#include "SFXManager.h"
 
 void UPauseMenu_WB::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	//bind buttons to on-click events
-    if (RestartButton) RestartButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::RestartGame);
-    if (MainMenuButton) MainMenuButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::GoToMainMenu);
-    if (QuitButton) QuitButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::QuitGame);
+	// Bind button click events to their respective functions
+	if (RestartButton) RestartButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::RestartGame);
+	if (MainMenuButton) MainMenuButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::GoToMainMenu);
+	if (QuitButton) QuitButton->OnClicked.AddDynamic(this, &UPauseMenu_WB::QuitGame);
 
-    // Pause the game when the menu is opened
-    //UGameplayStatics::SetGamePaused(GetWorld(), true);
+	// Bind button hover events
+	if (RestartButton) RestartButton->OnHovered.AddDynamic(this, &UPauseMenu_WB::OnButtonHovered);
+	if (MainMenuButton) MainMenuButton->OnHovered.AddDynamic(this, &UPauseMenu_WB::OnButtonHovered);
+	if (QuitButton) QuitButton->OnHovered.AddDynamic(this, &UPauseMenu_WB::OnButtonHovered);
+
+	// Pause the game when the menu is opened
+	//UGameplayStatics::SetGamePaused(GetWorld(), true);
+}
+
+void UPauseMenu_WB::OnButtonHovered()
+{
+	// Play hover sound
+	if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+	{
+		SFXManager->PlayButtonHoverSound();
+	}
 }
 
 void UPauseMenu_WB::RestartGame()
 {
-	FName CurrentLevel = *GetWorld()->GetName(); // Get the current level name
-	UGameplayStatics::OpenLevel(GetWorld(), CurrentLevel); // Restart the current level
+	// Play click sound
+	if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+	{
+		SFXManager->PlayButtonClickSound();
+	}
+
+	// Get current level name and restart it
+	FName CurrentLevel = *GetWorld()->GetName();
+	UGameplayStatics::OpenLevel(GetWorld(), CurrentLevel);
 }
 
 void UPauseMenu_WB::GoToMainMenu()
 {
-	UGameplayStatics::OpenLevel(GetWorld(), "StartingMenu"); // Go to the main menu
+	// Play click sound
+	if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+	{
+		SFXManager->PlayButtonClickSound();
+	}
+
+	// Load the starting menu level
+	UGameplayStatics::OpenLevel(GetWorld(), "StartingMenu");
 }
 
 void UPauseMenu_WB::QuitGame()
 {
-    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController(); 
-	// Get the player controller
-    if (PlayerController) 
-    {
-		UKismetSystemLibrary::QuitGame(GetWorld(), PlayerController, EQuitPreference::Quit, false); // Quit the game
-    }
+	// Play click sound
+	if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+	{
+		SFXManager->PlayButtonClickSound();
+	}
+
+	// Get player controller and quit the game
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	if (PlayerController)
+	{
+		UKismetSystemLibrary::QuitGame(GetWorld(), PlayerController, EQuitPreference::Quit, false);
+	}
 }
 
 void UPauseMenu_WB::TogglePauseMenu()
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
+	if (IsVisible())
+	{
+		// Play menu close sound
+		if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+		{
+			SFXManager->PlayMenuCloseSound();
+		}
 
-    APlayerController* PlayerController = World->GetFirstPlayerController();
-    if (!PlayerController) return;
+		RemoveFromParent();
+		UGameplayStatics::SetGamePaused(GetWorld(), false);
+	}
+	else
+	{
+		// Play menu open sound
+		if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+		{
+			SFXManager->PlayMenuOpenSound();
+		}
 
-    bool bIsPaused = UGameplayStatics::IsGamePaused(World);
-
-    if (bIsPaused)
-    {
-        // Unpause the game and remove menu
-        RemoveFromParent();
-        UGameplayStatics::SetGamePaused(World, false);
-        PlayerController->SetInputMode(FInputModeGameOnly()); // Restore game input
-        PlayerController->bShowMouseCursor = false;
-    }
-	if (!bIsPaused)
-    {
-        // Pause the game and show menu
-        AddToViewport();
-        UGameplayStatics::SetGamePaused(World, true);
-        PlayerController->SetInputMode(FInputModeUIOnly()); // UI-only input
-        PlayerController->bShowMouseCursor = true;
-    }
+		AddToViewport();
+		UGameplayStatics::SetGamePaused(GetWorld(), true);
+	}
 }

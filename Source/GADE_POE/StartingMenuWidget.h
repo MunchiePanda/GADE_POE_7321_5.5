@@ -16,6 +16,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void OnExitClicked();
 
+    UFUNCTION()
+    void OnButtonHovered();
+
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UUserWidget> MainMenuWidgetClass;

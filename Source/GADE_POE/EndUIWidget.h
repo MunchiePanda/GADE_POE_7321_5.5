@@ -42,6 +42,9 @@ protected:
     UFUNCTION()
 	void OnQuitClicked(); // Function to quit the game
 
+    UFUNCTION()
+    void OnButtonHovered();
+
 	UFUNCTION(BlueprintCallable, Category = "UI") // Function to update the UI with the player's position and leaderboard
     void UpdateUI();
 

@@ -23,14 +23,26 @@
 #include "Navigation/CrowdManager.h"
 #include "Navigation/CrowdFollowingComponent.h"
 #include "NavFilters/NavigationQueryFilter.h"
+#include "GameFramework/Character.h"
+#include "TimerManager.h"
 
-AAIRacerContoller::AAIRacerContoller() 
+// Constructor - Initialize default values and components
+AAIRacerContoller::AAIRacerContoller()
 {
+    // Enable tick for continuous updates
     PrimaryActorTick.bCanEverTick = true;
-    bInitialized = false;
-    bUseGraphNavigation = false;
+    
+    // Initialize pointers to null
+    WaypointManager = nullptr;
+    LinkedList = nullptr;
     Graph = nullptr;
     AdvancedRaceManager = nullptr;
+    CurrentWaypoint = nullptr;
+    GameState = nullptr;
+    
+    // Set default values
+    bInitialized = false;
+    bUseGraphNavigation = false;
 }
 
 void AAIRacerContoller::BeginPlay()

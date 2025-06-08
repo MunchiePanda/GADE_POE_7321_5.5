@@ -2,6 +2,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "PlayerHamster.h"
+#include "SFXManager.h"
 
 void UEndUIWidget::NativeConstruct()
 {
@@ -24,14 +25,17 @@ void UEndUIWidget::NativeConstruct()
     if (RestartButton)
     {
         RestartButton->OnClicked.AddDynamic(this, &UEndUIWidget::OnRestartClicked);
+        RestartButton->OnHovered.AddDynamic(this, &UEndUIWidget::OnButtonHovered);
     }
     if (MainMenuButton)
     {
         MainMenuButton->OnClicked.AddDynamic(this, &UEndUIWidget::OnMainMenuClicked);
+        MainMenuButton->OnHovered.AddDynamic(this, &UEndUIWidget::OnButtonHovered);
     }
     if (QuitButton)
     {
         QuitButton->OnClicked.AddDynamic(this, &UEndUIWidget::OnQuitClicked);
+        QuitButton->OnHovered.AddDynamic(this, &UEndUIWidget::OnButtonHovered);
     }
 
 	// Set the mouse cursor to be visible and set input mode to UI only
@@ -41,6 +45,12 @@ void UEndUIWidget::NativeConstruct()
         PlayerController->bShowMouseCursor = true;
         PlayerController->SetInputMode(FInputModeUIOnly());
     }
+
+    // Play menu open sound when constructed
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayMenuOpenSound();
+    }
 }
 
 void UEndUIWidget::NativeDestruct()
@@ -49,34 +59,70 @@ void UEndUIWidget::NativeDestruct()
     if (RestartButton)
     {
         RestartButton->OnClicked.RemoveDynamic(this, &UEndUIWidget::OnRestartClicked);
+        RestartButton->OnHovered.RemoveDynamic(this, &UEndUIWidget::OnButtonHovered);
     }
     if (MainMenuButton)
     {
         MainMenuButton->OnClicked.RemoveDynamic(this, &UEndUIWidget::OnMainMenuClicked);
+        MainMenuButton->OnHovered.RemoveDynamic(this, &UEndUIWidget::OnButtonHovered);
     }
     if (QuitButton)
     {
         QuitButton->OnClicked.RemoveDynamic(this, &UEndUIWidget::OnQuitClicked);
+        QuitButton->OnHovered.RemoveDynamic(this, &UEndUIWidget::OnButtonHovered);
+    }
+
+    // Play menu close sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayMenuCloseSound();
     }
 
     Super::NativeDestruct();
 }
 
+void UEndUIWidget::OnButtonHovered()
+{
+    // Play hover sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonHoverSound();
+    }
+}
+
 void UEndUIWidget::OnRestartClicked() 
 {
-        UE_LOG(LogTemp, Warning, TEXT("EndUIWidget: CurrentLevelName not set, defaulting to BeginnerMap"));
-		UGameplayStatics::OpenLevel(GetWorld(), FName("BeginnerMap")); // Restart the game by opening the level
+    // Play click sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonClickSound();
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("EndUIWidget: CurrentLevelName not set, defaulting to BeginnerMap"));
+	UGameplayStatics::OpenLevel(GetWorld(), FName("BeginnerMap")); // Restart the game by opening the level
 }
 
 // Function to go back to the main menu
 void UEndUIWidget::OnMainMenuClicked()
 {
+    // Play click sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonClickSound();
+    }
+
     UGameplayStatics::OpenLevel(GetWorld(), FName("StartingMenu")); 
 }
 
 // Function to quit the game
 void UEndUIWidget::OnQuitClicked()
 {
+    // Play click sound
+    if (ASFXManager* SFXManager = ASFXManager::GetInstance(GetWorld()))
+    {
+        SFXManager->PlayButtonClickSound();
+    }
+
     UKismetSystemLibrary::QuitGame(GetWorld(), nullptr, EQuitPreference::Quit, false);
 }
 

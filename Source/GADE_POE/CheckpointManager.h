@@ -6,7 +6,11 @@
 #include "GameFramework/Actor.h"
 #include "CheckStackTemp.h"
 #include "CheckpointActor.h"
+#include "Sound/SoundBase.h"
 #include "CheckpointManager.generated.h"
+
+// Forward declarations
+class ACheckpointActor;
 
 UCLASS()
 class GADE_POE_API ACheckpointManager : public AActor
